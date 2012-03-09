@@ -56,7 +56,7 @@ $params['p2pSetConfig'] = array(
 
 login() or die("ERROR LOGIN\n");
 
-if(isset($argv))
+if(isset($argv[1]))
 {
 	switch($argv[1])
 	{
@@ -79,9 +79,16 @@ if(isset($argv))
 	}
 	echo "\n";
 }
+else
+	help();
 
 
 //	DEFINIZIONE FUNZIONI
+
+function help()
+{
+	die("Usage:\n$./pulse.php [p2p [start|stop|status]]\n\n");
+}
 
 function p2pGetConfig()
 {
