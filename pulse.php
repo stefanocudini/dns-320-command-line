@@ -13,7 +13,7 @@ php5-curl
 http://simplehtmldom.sourceforge.net/
 
 Usage:
-	$./pulse.php [p2p [start|stop|status]]
+	$./pulse.php [p2p [on|off]]
 
 */
 
@@ -61,20 +61,32 @@ if(isset($argv[1]))
 	switch($argv[1])
 	{
 		case 'p2p':
+			$p2pConf = p2pGetConfig();
+			
 			if(isset($argv[2]))
 				switch($argv[2])
 				{
-					case 'start':
+					case 'on':
 						p2pSetConfig( array('on'=>true) );
 					break;
-					case 'stop':
+					case 'off':
 						p2pSetConfig( array('on'=>false) );
 					break;
-					case 'status':
+					
+					case 'down':
+						if(isset($argv[3]))
+							p2pSetConfig( array('down'=>intval($argv[3])) );
 					break;
+/*					case 'up':
+						if(isset($argv[3]))
+							p2pSetConfig( array('up'=>intval($argv[3])) );
+					break;
+*/
 				}
-			$conf = p2pGetConfig();
-			echo (bool)$conf['p2p'] ? 'P2P: on' : 'P2P: off';
+			$p2pConf = p2pGetConfig();
+			echo "P2P:   ".((bool)$p2pConf['p2p'] ? 'on':'off')."\n";				
+			echo " down: ".$p2pConf['bandwidth_downlaod_rate']."\n";
+#			echo " up:   ".$p2pConf['bandwidth_upload_rate']."\n";
 		break;
 	}
 	echo "\n";
@@ -87,7 +99,11 @@ else
 
 function help()
 {
-	die("Usage:\n$./pulse.php [p2p [start|stop|status]]\n\n");
+	die(
+	"Usage:\n".
+		"\t$./pulse.php [p2p [on|off] | [down|up <KBps>] ]\n".
+	"\n"
+	);
 }
 
 function p2pGetConfig()
@@ -102,7 +118,9 @@ function p2pSetConfig($sets=array())
 	global $urls;
 	global $params;
 
-	$params['p2pSetConfig']['f_P2P']= $sets['on'] ? 1:0;
+	if(isset($sets['on']))   $params['p2pSetConfig']['f_P2P']= $sets['on'] ? 1:0;
+	if(isset($sets['down'])) $params['p2pSetConfig']['f_flow_control_schedule_max_download_rate']= $sets['down'];
+	if(isset($sets['up']))   $params['p2pSetConfig']['f_flow_control_schedule_max_upload_rate']= $sets['up'];
 	
 	return xml2array( http_post_request($urls['p2p'],$params['p2pSetConfig']) );//XMLObj to Array
 }
