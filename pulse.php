@@ -54,54 +54,65 @@ $params['p2pSetConfig'] = array(
 'tmp_p2p_state'=>''
 );
 
+$options = array('p:'=>'p2p:',
+				 'u'=>'ups',
+				 't'=>'temp',
+ 				 'h'=>'help');
+$opts = getopt(implode('',array_keys($options)),array_values($options));
+
+#print_r($opts);
+#exit(0);
 
 login() or die("ERROR LOGIN\n");
 
-if(isset($argv[1]))
+foreach($opts as $opt=>$optval)
 {
-	switch($argv[1])
+	switch($opt)
 	{
+		case 'p':		
 		case 'p2p':
+			switch($optval)
+			{
+				case 'on':
+					p2pSetConfig( array('on'=>true) );
+				break;
+				case 'off':
+					p2pSetConfig( array('on'=>false) );
+				break;
+			}
 			$p2pConf = p2pGetConfig();
-			
-			if(isset($argv[2]))
-				switch($argv[2])
-				{
-					case 'on':
-						p2pSetConfig( array('on'=>true) );
-					break;
-					case 'off':
-						p2pSetConfig( array('on'=>false) );
-					break;
-					case 'down':
-						if(isset($argv[3]))
-							p2pSetConfig( array('down'=>intval($argv[3])) );
-					break;
-/*					case 'up':
-						if(isset($argv[3]))
-							p2pSetConfig( array('up'=>intval($argv[3])) );
-					break;*/
-				}
+			echo "P2P:\t".((bool)$p2pConf['p2p'] ? 'on':'off');
+		break;	
+/*		case 'down':
+			if(isset($argv[3]))
+				p2pSetConfig( array('down'=>intval($argv[3])) );
 			$p2pConf = p2pGetConfig();
-			echo "P2P:   ".((bool)$p2pConf['p2p'] ? 'on':'off')."\n";				
 			echo " down: ".$p2pConf['bandwidth_downlaod_rate']."\n";
-#			echo " up:   ".$p2pConf['bandwidth_upload_rate']."\n";
 		break;
-
+		case 'up':
+			if(isset($argv[3]))
+				p2pSetConfig( array('up'=>intval($argv[3])) );
+			$p2pConf = p2pGetConfig();
+			echo " up:   ".$p2pConf['bandwidth_upload_rate']."\n";
+		break;*/
+		case 'u':
 		case 'ups':
 			$ups = upsGetInfo();
-			echo 'UPS: '.($ups ? $ups['stat']."\n ".' battery: '.$ups['bat'] : 'off');
+			echo "UPS:\t".($ups ? $ups['stat']."\n ".' battery: '.$ups['bat'] : 'off');
+		break;
+		
+		case 't':
+		case 'temp':
+			echo "TEMP:\t".sysGetTemp();
 		break;
 
-		case 'temp':
-			echo sysGetTemp();
-		break;
+		case 'h':		
+		case 'help':
+		default:
+			help();
 	}
 	echo "\n";
 }
-else
-	help();
-
 
 //	DEFINIZIONE FUNZIONI
 
@@ -109,7 +120,7 @@ function help()
 {
 	die(
 	"Usage:\n".
-		"\t$./pulse.php [p2p [on|off] | [down|up <KBps>] ]\n".
+		"\t$./pulse.php [--p2p {on|off|status} ] [--temp] [--ups] [--help]\n".
 	"\n"
 	);
 }
