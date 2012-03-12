@@ -54,6 +54,7 @@ $params['p2pSetConfig'] = array(
 'tmp_p2p_state'=>''
 );
 
+
 login() or die("ERROR LOGIN\n");
 
 if(isset($argv[1]))
@@ -72,7 +73,6 @@ if(isset($argv[1]))
 					case 'off':
 						p2pSetConfig( array('on'=>false) );
 					break;
-					
 					case 'down':
 						if(isset($argv[3]))
 							p2pSetConfig( array('down'=>intval($argv[3])) );
@@ -80,13 +80,21 @@ if(isset($argv[1]))
 /*					case 'up':
 						if(isset($argv[3]))
 							p2pSetConfig( array('up'=>intval($argv[3])) );
-					break;
-*/
+					break;*/
 				}
 			$p2pConf = p2pGetConfig();
 			echo "P2P:   ".((bool)$p2pConf['p2p'] ? 'on':'off')."\n";				
 			echo " down: ".$p2pConf['bandwidth_downlaod_rate']."\n";
 #			echo " up:   ".$p2pConf['bandwidth_upload_rate']."\n";
+		break;
+
+		case 'ups':
+			$ups = upsGetInfo();
+			echo 'UPS: '.($ups ? $ups['stat']."\n ".' battery: '.$ups['bat'] : 'off');
+		break;
+
+		case 'temp':
+			echo sysGetTemp();
 		break;
 	}
 	echo "\n";
@@ -106,11 +114,33 @@ function help()
 	);
 }
 
+function upsGetInfo()
+{
+	global $urls;
+	global $params;
+	
+	$ups = xml2array( http_post_request("http://pulse/cgi-bin/status_mgr.cgi",array('cmd'=>'cgi_get_status')) );
+
+	if($ups['usb_type']=='UPS')
+		$upsret = array('bat'=>$ups['battery'],'stat'=>$ups['ups_status']);
+	else
+		return false;
+
+	return $upsret;
+}
+
+function sysGetTemp()
+{
+	$sys = xml2array( http_post_request("http://pulse/cgi-bin/status_mgr.cgi",array('cmd'=>'cgi_get_status')) );
+	$t = next( explode(':',$sys['temperature']) );
+	return $t;
+}
+
 function p2pGetConfig()
 {
 	global $urls;
 	global $params;
-	return xml2array( http_post_request($urls['p2p'],$params['p2pGetConfig']) );//XMLObj to Array
+	return xml2array( http_post_request($urls['p2p'],$params['p2pGetConfig']) );
 }
 
 function p2pSetConfig($sets=array())
@@ -128,14 +158,14 @@ function p2pSetConfig($sets=array())
 function login()
 {
 	global $urls;
-	global $params;	
+	global $params;
 	static $logged = false;
 	
 	if($logged) return false;
 	
 	require_once('simple_html_dom.php');	//http://simplehtmldom.sourceforge.net
 	
-	$html = str_get_html( http_post_request($urls['login'],$params['loginSet']));
+	$html = str_get_html( http_post_request($urls['login'],$params['loginSet']) );
 	$ldiv = $html->find("div[id=login]");
 	$logged = !(is_array($ldiv) and count($ldiv)>0);
 	return $logged;
@@ -154,6 +184,7 @@ function http_get_request($url)
 	curl_setopt($ch, CURLOPT_COOKIEFILE, CJAR);
 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 	curl_setopt($ch, CURLOPT_USERAGENT, UAGENT);
+	curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
 	$a = curl_exec($ch);
 	curl_close($ch);
 	return $a;
@@ -173,6 +204,7 @@ function http_post_request($url,$pdata)
 	curl_setopt($ch, CURLOPT_COOKIEFILE, CJAR);
 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 	curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows; U; Windows NT 5.1; it-it; rv:1.8.1.3) Gecko/20070309 Firefox/3.0.0.6");
+	curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
 	$a = curl_exec($ch);
 	curl_close($ch);
 	return $a;
