@@ -12,10 +12,11 @@ php5-cli
 php5-curl
 simplehtmldom (http://simplehtmldom.sourceforge.net)
 */
-$options = array('p::'=>'p2p::',
-				 'u' =>'ups',
+$options = array('H:' =>'host:',
+				 'p::'=>'p2p::',
+ 				 'u' =>'ups',
 				 't' =>'temp',
- 				 'H:' =>'host:',
+				 'd' =>'disks',				 
  				 'h' =>'help');
 
 $opts = getopt(implode('',array_keys($options)),array_values($options));
@@ -45,6 +46,10 @@ $params['loginSet'] = "cmd=login&username=".USER."&pwd=".PASS."&port=&f_type=1&f
 
 $urls['sys'] = "http://".HOST."/cgi-bin/status_mgr.cgi";
 $params['sysStatus'] = array('cmd'=>'cgi_get_status');
+
+$urls['disk'] = "http://".HOST."/cgi-bin/dsk_mgr.cgi";
+$params['diskStatus'] = array('cmd'=>'Status_HDInfo');
+
 
 $urls['p2p'] = "http://".HOST."/cgi-bin/p2p.cgi";
 $params['p2pStatus'] = array(
@@ -108,8 +113,8 @@ foreach($opts as $opt=>$optval)
 */
 		case 'u':
 		case 'ups':
-			$ups = upsGetInfo();
-			echo "UPS:\t".($ups ? $ups['stat']."\n ".' battery: '.$ups['bat'] : 'off');
+			$u = upsGetInfo();
+			echo "UPS:\t".($u ? $u['stat']."\n ".' battery: '.$u['bat'] : 'off');
 		break;
 
 		case 't':
@@ -117,6 +122,20 @@ foreach($opts as $opt=>$optval)
 			echo "TEMP:\t".sysGetTemp();
 		break;
 
+		case 'd':
+		case 'disks':
+			$d = diskGetInfo();
+			#var_export($d);
+			echo "DISKS:\t".count($d['Volume'])."\n";
+			foreach($d['Volume'] as $disk)
+			{
+				$disk['free_size'] = $disk['total_size'] - $disk['used_size'];
+				echo " ".$disk['shared_name'].': '.bytesConvert($disk['total_size']*1000)."\n".
+ 					 "   free: ".bytesConvert($disk['free_size']*1000)."\n".
+					 "   used: ".$disk['used_rate']."\n\n";
+			}
+		break;
+		
 		case 'h':
 		case 'help':
 		default:
@@ -151,6 +170,15 @@ function sysGetTemp()
 	$sys = xml2array( http_post_request($urls['sys'],$params['sysStatus']) );
 	$t = next( explode(':',$sys['temperature']) );
 	return $t;
+}
+
+function diskGetInfo()
+{
+	global $urls;
+	global $params;
+	$sys = xml2array( http_post_request($urls['disk'],$params['diskStatus']) );
+	#$t = next( explode(':',$sys['temperature']) );
+	return $sys;
 }
 
 function p2pGetConfig()
@@ -225,6 +253,14 @@ function http_post_request($url,$pdata)
 function xml2array($xml)
 {
 	return json_decode(json_encode(simplexml_load_string($xml)),true);
+}
+
+function bytesConvert($bytes)
+{
+    $ext = array('B', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB');
+    $unitCount = 0;
+    for(; $bytes > 1024; $unitCount++) $bytes /= 1024;
+    return round($bytes,2).$ext[$unitCount];
 }
 
 function json_indent($json)
