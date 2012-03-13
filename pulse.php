@@ -20,41 +20,43 @@ Usage:
 define('HOST','pulse');//ip or hostname of youre sharecenter dns-320
 define('USER','admin');
 define('PASS','admin');
+
 define('CJAR', basename(__FILE__).'_cookies.txt');
 define('UAGENT', isset($_SERVER['HTTP_USER_AGENT'])?$_SERVER['HTTP_USER_AGENT']:"Mozilla/5.0 (Windows; U; Windows NT 5.1; it-it; rv:1.8.1.3) Gecko/20070309 Firefox/3.0.0.6");
 
 $urls['login'] = "http://".HOST."/cgi-bin/login_mgr.cgi";
 $params['loginSet'] = "cmd=login&username=".USER."&pwd=".PASS."&port=&f_type=1&f_username=&pre_pwd=admin&C1=ON&ssl_port=443";
 
+$urls['sys'] = "http://pulse/cgi-bin/status_mgr.cgi";
+$params['sysStatus'] = array('cmd'=>'cgi_get_status');
+
 $urls['p2p'] = "http://".HOST."/cgi-bin/p2p.cgi";
 $params['p2pStatus'] = array(
-'cmd'=>'p2p_get_list_by_priority',
-'page'=>1,
-'rp'=>10,
-'sortname'=>'undefined',
-'sortorder'=>'undefined',
-'query'=>'',
-'qtype'=>'',
-'f_field'=>0
+	'cmd'=>'p2p_get_list_by_priority',
+	'page'=>1,
+	'rp'=>10,
+	'sortname'=>'undefined',
+	'sortorder'=>'undefined',
+	'query'=>'',
+	'qtype'=>'',
+	'f_field'=>0
 );
-$params['p2pGetConfig'] = array(
-'cmd'=>'p2p_get_setting_info'
-);
+$params['p2pGetConfig'] = array('cmd'=>'p2p_get_setting_info');
 $params['p2pSetConfig'] = array(
-'f_P2P'=>1,
-'f_auto_download'=>1,
-'f_port_custom'=>true,
-'f_seed_type'=>0,
-'f_encryption'=>1,
-'f_flow_control_schedule_max_download_rate'=>-1,
-'f_flow_control_schedule_max_upload_rate'=>-1,
-'f_bandwidth_auto'=>false,
-'f_flow_control_schedule'=>'111111111112221111112222111111111112221111112222111111111112221111112222111111111112221111112222111111111112221111112222111111111112221111112222111111111112221111112222',
-'cmd'=>'p2p_set_config',
-'tmp_p2p_state'=>''
+	'f_P2P'=>1,
+	'f_auto_download'=>1,
+	'f_port_custom'=>true,
+	'f_seed_type'=>0,
+	'f_encryption'=>1,
+	'f_flow_control_schedule_max_download_rate'=>-1,
+	'f_flow_control_schedule_max_upload_rate'=>-1,
+	'f_bandwidth_auto'=>false,
+	'f_flow_control_schedule'=>'111111111112221111112222111111111112221111112222111111111112221111112222111111111112221111112222111111111112221111112222111111111112221111112222111111111112221111112222',
+	'cmd'=>'p2p_set_config',
+	'tmp_p2p_state'=>''
 );
 
-$options = array('p:'=>'p2p:',
+$options = array('p::'=>'p2p::',
 				 'u'=>'ups',
 				 't'=>'temp',
  				 'h'=>'help');
@@ -69,7 +71,7 @@ foreach($opts as $opt=>$optval)
 {
 	switch($opt)
 	{
-		case 'p':		
+		case 'p':
 		case 'p2p':
 			switch($optval)
 			{
@@ -82,7 +84,7 @@ foreach($opts as $opt=>$optval)
 			}
 			$p2pConf = p2pGetConfig();
 			echo "P2P:\t".((bool)$p2pConf['p2p'] ? 'on':'off');
-		break;	
+		break;
 /*		case 'down':
 			if(isset($argv[3]))
 				p2pSetConfig( array('down'=>intval($argv[3])) );
@@ -100,14 +102,14 @@ foreach($opts as $opt=>$optval)
 			$ups = upsGetInfo();
 			echo "UPS:\t".($ups ? $ups['stat']."\n ".' battery: '.$ups['bat'] : 'off');
 		break;
-		
+
 		case 't':
 		case 'temp':
 			echo "TEMP:\t".sysGetTemp();
 		break;
 
-		case 'h':		
-		case 'help':
+		case 'h':
+		case 'help':	
 		default:
 			help();
 	}
@@ -118,31 +120,26 @@ foreach($opts as $opt=>$optval)
 
 function help()
 {
-	die(
-	"Usage:\n".
-		"\t$./pulse.php [--p2p {on|off|status} ] [--temp] [--ups] [--help]\n".
-	"\n"
-	);
+	die("Usage: pulse.php [--p2p [on|off] ] [--temp] [--ups] [--help]\n\n");
 }
 
 function upsGetInfo()
 {
 	global $urls;
 	global $params;
-	
-	$ups = xml2array( http_post_request("http://pulse/cgi-bin/status_mgr.cgi",array('cmd'=>'cgi_get_status')) );
-
+	$ups = xml2array( http_post_request($urls['sys'],$params['sysStatus']) );
 	if($ups['usb_type']=='UPS')
 		$upsret = array('bat'=>$ups['battery'],'stat'=>$ups['ups_status']);
 	else
 		return false;
-
 	return $upsret;
 }
 
 function sysGetTemp()
 {
-	$sys = xml2array( http_post_request("http://pulse/cgi-bin/status_mgr.cgi",array('cmd'=>'cgi_get_status')) );
+	global $urls;
+	global $params;	
+	$sys = xml2array( http_post_request($urls['sys'],$params['sysStatus']) );
 	$t = next( explode(':',$sys['temperature']) );
 	return $t;
 }
