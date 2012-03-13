@@ -14,11 +14,22 @@ simplehtmldom (http://simplehtmldom.sourceforge.net)
 */
 $options = array('H:' =>'host:',
 				 'p::'=>'p2p::',
- 				 'u' =>'ups',
 				 't' =>'temp',
-				 'd' =>'disks',				 
+ 				 'u' =>'ups',
+				 'd' =>'disks',
+				 's' =>'shutdown',
+				 'r' =>'restart',				 				 
  				 'h' =>'help');
-
+define('HELP',
+	"Usage: pulse.php [OPTIONS]\n".
+	"       -H,--host         Hostname or ip target, where sharecenter dns-320\n".
+	"       -p,--p2p[=on|off] get or set p2p client state\n".
+	"       -t,--temp         get temperature inside\n".
+	"       -u,--ups          get ups state\n".
+	"       -d,--disks        get disks usage\n".
+	"       -s,--shutdown     power off the system\n".
+	"       -r,--restart      restart the system\n".
+	"       -h,--help         print this help\n\n");
 $opts = getopt(implode('',array_keys($options)),array_values($options));
 print_r($opts);
 #exit(0);
@@ -44,12 +55,15 @@ define('UAGENT', isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'
 $urls['login'] = "http://".HOST."/cgi-bin/login_mgr.cgi";
 $params['loginSet'] = "cmd=login&username=".USER."&pwd=".PASS."&port=&f_type=1&f_username=&pre_pwd=admin&C1=ON&ssl_port=443";
 
-$urls['sys'] = "http://".HOST."/cgi-bin/status_mgr.cgi";
-$params['sysStatus'] = array('cmd'=>'cgi_get_status');
+$urls['stat'] = "http://".HOST."/cgi-bin/status_mgr.cgi";
+$params['statGetStatus'] = array('cmd'=>'cgi_get_status');
 
 $urls['disk'] = "http://".HOST."/cgi-bin/dsk_mgr.cgi";
 $params['diskStatus'] = array('cmd'=>'Status_HDInfo');
 
+$urls['sys'] = "http://".HOST."/cgi-bin/system_mgr.cgi";
+$params['sysRestart'] = array('cmd'=>'cgi_restart');
+$params['sysShutdown'] = array('cmd'=>'cgi_shutdown');
 
 $urls['p2p'] = "http://".HOST."/cgi-bin/p2p.cgi";
 $params['p2pStatus'] = array(
@@ -135,6 +149,17 @@ foreach($opts as $opt=>$optval)
 					 "   used: ".$disk['used_rate']."\n\n";
 			}
 		break;
+
+		case 's':
+		case 'shutdown':
+			echo "Shutdown system...";
+			sysShutdown();
+		break;
+		case 'r':
+		case 'restart':
+			echo "Restart system...";
+			sysRestart();
+		break;
 		
 		case 'h':
 		case 'help':
@@ -146,19 +171,28 @@ foreach($opts as $opt=>$optval)
 
 function help()
 {
-	die("Usage: pulse.php [OPTIONS]\n".
-		"       -H,--host         Hostname or ip target, where sharecenter dns-320\n".
-		"       -p,--p2p[=on|off] get or set p2p client state\n".
-		"       -t,--temp         get temperature inside\n".
-		"       -u,--ups          get ups state\n".
-		"       -h,--help         print this help\n\n");
+	die(HELP);
+}
+
+function sysRestart()
+{
+	global $urls;
+	global $params;
+	http_post_request($urls['sys'],$params['sysRestart']);
+}
+
+function sysShutdown()
+{
+	global $urls;
+	global $params;
+	http_post_request($urls['sys'],$params['sysShutdown']);
 }
 
 function upsGetInfo()
 {
 	global $urls;
 	global $params;
-	$ups = xml2array( http_post_request($urls['sys'],$params['sysStatus']) );
+	$ups = xml2array( http_post_request($urls['stat'],$params['statGetStatus']) );
 	$upsret = ($ups['usb_type']=='UPS') ? array('bat'=>$ups['battery'],'stat'=>$ups['ups_status']) : false;
 	return $upsret;
 }
@@ -167,7 +201,7 @@ function sysGetTemp()
 {
 	global $urls;
 	global $params;	
-	$sys = xml2array( http_post_request($urls['sys'],$params['sysStatus']) );
+	$sys = xml2array( http_post_request($urls['stat'],$params['statGetStatus']) );
 	$t = next( explode(':',$sys['temperature']) );
 	return $t;
 }
