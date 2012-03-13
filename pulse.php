@@ -10,19 +10,35 @@ stefano.cudini@gmail.com
 requirements:
 php5-cli
 php5-curl
-http://simplehtmldom.sourceforge.net/
-
-Usage:
-	$./pulse.php [p2p [on|off]]
-
+simplehtmldom (http://simplehtmldom.sourceforge.net)
 */
+$options = array('p::'=>'p2p::',
+				 'u' =>'ups',
+				 't' =>'temp',
+ 				 'H:' =>'host:',
+ 				 'h' =>'help');
 
-define('HOST','pulse');//ip or hostname of youre sharecenter dns-320
+$opts = getopt(implode('',array_keys($options)),array_values($options));
+print_r($opts);
+#exit(0);
+
+if(count($opts)==0)
+	help();
+
+if(isset($opts['H']))
+	define('HOST', $opts['H']);
+	
+elseif(isset($opts['host']))
+	define('HOST', $opts['host']);
+	
+else
+	define('HOST', 'pulse');
+
 define('USER','admin');
 define('PASS','admin');
 
 define('CJAR', basename(__FILE__).'_cookies.txt');
-define('UAGENT', isset($_SERVER['HTTP_USER_AGENT'])?$_SERVER['HTTP_USER_AGENT']:"Mozilla/5.0 (Windows; U; Windows NT 5.1; it-it; rv:1.8.1.3) Gecko/20070309 Firefox/3.0.0.6");
+define('UAGENT', isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : "Mozilla/5.0 (Windows; U; Windows NT 5.1; it-it; rv:1.8.1.3) Gecko/20070309 Firefox/3.0.0.6");
 
 $urls['login'] = "http://".HOST."/cgi-bin/login_mgr.cgi";
 $params['loginSet'] = "cmd=login&username=".USER."&pwd=".PASS."&port=&f_type=1&f_username=&pre_pwd=admin&C1=ON&ssl_port=443";
@@ -56,17 +72,6 @@ $params['p2pSetConfig'] = array(
 	'tmp_p2p_state'=>''
 );
 
-$options = array('p::'=>'p2p::',
-				 'u' =>'ups',
-				 't' =>'temp',
- 				 'h' =>'help');
-$opts = getopt(implode('',array_keys($options)),array_values($options));
-
-#print_r($opts);
-#exit(0);
-
-if(count($opts)==0)
-	help();
 
 login() or die("ERROR LOGIN\n");
 
@@ -120,15 +125,14 @@ foreach($opts as $opt=>$optval)
 	echo "\n";
 }
 
-//	DEFINIZIONE FUNZIONI
-
 function help()
 {
 	die("Usage: pulse.php [OPTIONS]\n".
-		"       -p,--p2p[=on|off]\n".
-		"       -t,--temp\n".
-		"       -u,--ups\n".
-		"       -h,--help\n\n");
+		"       -H,--host         Hostname or ip target, where sharecenter dns-320\n".
+		"       -p,--p2p[=on|off] get or set p2p client state\n".
+		"       -t,--temp         get temperature inside\n".
+		"       -u,--ups          get ups state\n".
+		"       -h,--help         print this help\n\n");
 }
 
 function upsGetInfo()
@@ -170,14 +174,12 @@ function login()
 {
 	global $urls;
 	global $params;
-	static $logged = false;
-	
-	if($logged) return false;
+		
 	require_once('simple_html_dom.php');	//http://simplehtmldom.sourceforge.net
 	$html = str_get_html( http_post_request($urls['login'],$params['loginSet']) );
 	$ldiv = $html->find("div[id=login]");
-	$logged = !(is_array($ldiv) and count($ldiv)>0);
-	return $logged;
+	
+	return !(is_array($ldiv) and count($ldiv)>0);
 }
 
 function http_get_request($url)
