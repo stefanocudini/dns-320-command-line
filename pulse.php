@@ -27,7 +27,7 @@ define('UAGENT', isset($_SERVER['HTTP_USER_AGENT'])?$_SERVER['HTTP_USER_AGENT']:
 $urls['login'] = "http://".HOST."/cgi-bin/login_mgr.cgi";
 $params['loginSet'] = "cmd=login&username=".USER."&pwd=".PASS."&port=&f_type=1&f_username=&pre_pwd=admin&C1=ON&ssl_port=443";
 
-$urls['sys'] = "http://pulse/cgi-bin/status_mgr.cgi";
+$urls['sys'] = "http://".HOST."/cgi-bin/status_mgr.cgi";
 $params['sysStatus'] = array('cmd'=>'cgi_get_status');
 
 $urls['p2p'] = "http://".HOST."/cgi-bin/p2p.cgi";
@@ -57,13 +57,16 @@ $params['p2pSetConfig'] = array(
 );
 
 $options = array('p::'=>'p2p::',
-				 'u'=>'ups',
-				 't'=>'temp',
- 				 'h'=>'help');
+				 'u' =>'ups',
+				 't' =>'temp',
+ 				 'h' =>'help');
 $opts = getopt(implode('',array_keys($options)),array_values($options));
 
 #print_r($opts);
 #exit(0);
+
+if(count($opts)==0)
+	help();
 
 login() or die("ERROR LOGIN\n");
 
@@ -96,7 +99,8 @@ foreach($opts as $opt=>$optval)
 				p2pSetConfig( array('up'=>intval($argv[3])) );
 			$p2pConf = p2pGetConfig();
 			echo " up:   ".$p2pConf['bandwidth_upload_rate']."\n";
-		break;*/
+		break;
+*/
 		case 'u':
 		case 'ups':
 			$ups = upsGetInfo();
@@ -109,7 +113,7 @@ foreach($opts as $opt=>$optval)
 		break;
 
 		case 'h':
-		case 'help':	
+		case 'help':
 		default:
 			help();
 	}
@@ -120,7 +124,11 @@ foreach($opts as $opt=>$optval)
 
 function help()
 {
-	die("Usage: pulse.php [--p2p [on|off] ] [--temp] [--ups] [--help]\n\n");
+	die("Usage: pulse.php [OPTIONS]\n".
+		"       -p,--p2p[=on|off]\n".
+		"       -t,--temp\n".
+		"       -u,--ups\n".
+		"       -h,--help\n\n");
 }
 
 function upsGetInfo()
@@ -128,10 +136,7 @@ function upsGetInfo()
 	global $urls;
 	global $params;
 	$ups = xml2array( http_post_request($urls['sys'],$params['sysStatus']) );
-	if($ups['usb_type']=='UPS')
-		$upsret = array('bat'=>$ups['battery'],'stat'=>$ups['ups_status']);
-	else
-		return false;
+	$upsret = ($ups['usb_type']=='UPS') ? array('bat'=>$ups['battery'],'stat'=>$ups['ups_status']) : false;
 	return $upsret;
 }
 
@@ -155,11 +160,9 @@ function p2pSetConfig($sets=array())
 {
 	global $urls;
 	global $params;
-
 	if(isset($sets['on']))   $params['p2pSetConfig']['f_P2P']= $sets['on'] ? 1:0;
 	if(isset($sets['down'])) $params['p2pSetConfig']['f_flow_control_schedule_max_download_rate']= $sets['down'];
 	if(isset($sets['up']))   $params['p2pSetConfig']['f_flow_control_schedule_max_upload_rate']= $sets['up'];
-	
 	return xml2array( http_post_request($urls['p2p'],$params['p2pSetConfig']) );//XMLObj to Array
 }
 
@@ -170,9 +173,7 @@ function login()
 	static $logged = false;
 	
 	if($logged) return false;
-	
 	require_once('simple_html_dom.php');	//http://simplehtmldom.sourceforge.net
-	
 	$html = str_get_html( http_post_request($urls['login'],$params['loginSet']) );
 	$ldiv = $html->find("div[id=login]");
 	$logged = !(is_array($ldiv) and count($ldiv)>0);
@@ -206,6 +207,7 @@ function http_post_request($url,$pdata)
 	curl_setopt($ch, CURLOPT_POSTFIELDS, $pdata);
 	curl_setopt($ch, CURLOPT_POST, 1);
 	curl_setopt($ch, CURLOPT_HEADER, 0);
+#	curl_setopt($ch, CURLOPT_HTTPHEADER, array("Connection: close"));	
 	curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
 	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 	curl_setopt($ch, CURLOPT_COOKIEJAR, CJAR);
@@ -218,8 +220,8 @@ function http_post_request($url,$pdata)
 	return $a;
 }
 
-function xml2array($xml) 
-{ 
+function xml2array($xml)
+{
 	return json_decode(json_encode(simplexml_load_string($xml)),true);
 }
 
