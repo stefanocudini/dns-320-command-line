@@ -14,6 +14,7 @@ simplehtmldom (http://simplehtmldom.sourceforge.net)
 */
 $options = array('H:' =>'host:',
 				 'p::'=>'p2p::',
+				 'D::'=>'download::',
 				 't' =>'temp',
  				 'u' =>'ups',
 				 'd' =>'disks',
@@ -22,16 +23,17 @@ $options = array('H:' =>'host:',
  				 'h' =>'help');
 define('HELP',
 	"Usage: pulse.php [OPTIONS]\n".
-	"       -H,--host         Hostname or ip target, where sharecenter dns-320\n".
-	"       -p,--p2p[=on|off] get or set p2p client state\n".
-	"       -t,--temp         get temperature inside\n".
-	"       -u,--ups          get ups state\n".
-	"       -d,--disks        get disks usage\n".
-	"       -s,--shutdown     power off the system\n".
-	"       -r,--restart      restart the system\n".
-	"       -h,--help         print this help\n\n");
+	"       -H,--host           hostname or ip target, where sharecenter dns-320\n".
+	"       -p,--p2p[=on|off]   get or set p2p client state\n".
+	"       -D,--download[=url] list or add url in http downloader\n".
+	"       -t,--temp           get temperature inside\n".
+	"       -u,--ups            get ups state\n".
+	"       -d,--disks          get disks usage\n".
+	"       -s,--shutdown       power off the system\n".
+	"       -r,--restart        restart the system\n".
+	"       -h,--help           print this help\n\n");
 $opts = getopt(implode('',array_keys($options)),array_values($options));
-print_r($opts);
+#print_r($opts);
 #exit(0);
 
 if(count($opts)==0)
@@ -48,6 +50,8 @@ else
 
 define('USER','admin');
 define('PASS','admin');
+
+define('DOWNDIR','Volume_1');//target path for http download
 
 define('CJAR', basename(__FILE__).'_cookies.txt');
 define('UAGENT', isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : "Mozilla/5.0 (Windows; U; Windows NT 5.1; it-it; rv:1.8.1.3) Gecko/20070309 Firefox/3.0.0.6");
@@ -91,6 +95,36 @@ $params['p2pSetConfig'] = array(
 	'tmp_p2p_state'=>''
 );
 
+$urls['down'] = "http://".HOST."/cgi-bin/download_mgr.cgi";
+$params['downAddUrl'] = array(
+	'f_downloadtype'=>0,
+	'f_login_method'=>1,
+	'f_type'=>0,
+	'f_URL'=>'http://host/path/file',
+	'f_dir'=>DOWNDIR,
+	'f_rename'=>'',
+	'f_lang'=>'UTF-8',
+	'f_default_lang'=>'none',
+	'f_date'=>'',
+	'f_hour'=>21,
+	'f_min'=>27,
+	'f_period'=>'none',
+	'f_at'=>201203132127,
+	'f_idx'=>'',
+	'f_login_user'=>USER,
+	'cmd'=>'Downloads_Schedule_Add',
+	'rp'=>10
+);
+$params['downGetList'] = array(
+	'cmd'=>'Downloads_Schedule_List',
+	'page'=>1,
+	'rp'=>10,
+	'sortname'=>'undefined',
+	'sortorder'=>'undefined',
+	'query'=>'',
+	'qtype'=>'',
+	'f_field'=>USER
+);
 
 login() or die("ERROR LOGIN\n");
 
@@ -111,7 +145,7 @@ foreach($opts as $opt=>$optval)
 			}
 			$p2pConf = p2pGetConfig();
 			echo "P2P:\t".((bool)$p2pConf['p2p'] ? 'on':'off');
-		break;
+		break;	
 /*		case 'down':
 			if(isset($argv[3]))
 				p2pSetConfig( array('down'=>intval($argv[3])) );
@@ -125,6 +159,26 @@ foreach($opts as $opt=>$optval)
 			echo " up:   ".$p2pConf['bandwidth_upload_rate']."\n";
 		break;
 */
+		case 'D':
+		case 'download':
+			if(!empty($optval))
+			{
+				downAddUrl($optval);
+				sleep(2);
+			}
+			$D = downGetList();
+			$cd = count($D['row']);
+			echo "DOWNLOADS: ".$cd."\n";
+			if($cd)
+				foreach($D['row'] as $U)
+				{
+					$u = $U['cell'][0];	//url
+					$s = $U['cell'][4].'s';	//speed
+					preg_match("/.*>(.*)<.*/",$U['cell'][2],$p);//progress
+					echo ' '.$p[1]."%\t$s\t\t".basename($u)."\n";
+				}
+		break;
+		
 		case 'u':
 		case 'ups':
 			$u = upsGetInfo();
@@ -139,7 +193,6 @@ foreach($opts as $opt=>$optval)
 		case 'd':
 		case 'disks':
 			$d = diskGetInfo();
-			#var_export($d);
 			echo "DISKS:\t".count($d['Volume'])."\n";
 			foreach($d['Volume'] as $disk)
 			{
@@ -232,6 +285,28 @@ function p2pSetConfig($sets=array())
 	return xml2array( http_post_request($urls['p2p'],$params['p2pSetConfig']) );//XMLObj to Array
 }
 
+function downAddUrl($url)
+{
+	global $urls;
+	global $params;
+
+	$params['downAddUrl']['f_URL']= $url;
+	$params['downAddUrl']['f_date']= date("m/d/Y");
+	$params['downAddUrl']['f_hour']= date("h");
+	$params['downAddUrl']['f_min']= date("i");
+	//control time zone from dns-320 and where execute script
+		
+	http_post_request($urls['down'],$params['downAddUrl']);
+}
+
+function downGetList()
+{
+	global $urls;
+	global $params;
+	return xml2array( http_post_request($urls['down'],$params['downGetList']) );
+}
+
+
 function login()
 {
 	global $urls;
@@ -242,25 +317,6 @@ function login()
 	$ldiv = $html->find("div[id=login]");
 	
 	return !(is_array($ldiv) and count($ldiv)>0);
-}
-
-function http_get_request($url)
-{
-	$ch = curl_init();
-	curl_setopt($ch, CURLOPT_URL, $url );
-	curl_setopt($ch, CURLOPT_POST, 0);
-	curl_setopt($ch, CURLOPT_HEADER, 0);//non mostra header ricevuto
-	curl_setopt($ch, CURLOPT_HTTPHEADER, array("Connection: keep-alive","Keep-Alive: 300"));
-	curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
-	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-	curl_setopt($ch, CURLOPT_COOKIEJAR, CJAR);
-	curl_setopt($ch, CURLOPT_COOKIEFILE, CJAR);
-	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-	curl_setopt($ch, CURLOPT_USERAGENT, UAGENT);
-	curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-	$a = curl_exec($ch);
-	curl_close($ch);
-	return $a;
 }
 
 function http_post_request($url,$pdata)
@@ -283,6 +339,25 @@ function http_post_request($url,$pdata)
 	curl_close($ch);
 	return $a;
 }
+
+/*function http_get_request($url)//GET
+{
+	$ch = curl_init();
+	curl_setopt($ch, CURLOPT_URL, $url );
+	curl_setopt($ch, CURLOPT_POST, 0);
+	curl_setopt($ch, CURLOPT_HEADER, 0);//non mostra header ricevuto
+	curl_setopt($ch, CURLOPT_HTTPHEADER, array("Connection: keep-alive","Keep-Alive: 300"));
+	curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+	curl_setopt($ch, CURLOPT_COOKIEJAR, CJAR);
+	curl_setopt($ch, CURLOPT_COOKIEFILE, CJAR);
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+	curl_setopt($ch, CURLOPT_USERAGENT, UAGENT);
+	curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+	$a = curl_exec($ch);
+	curl_close($ch);
+	return $a;
+}//*/
 
 function xml2array($xml)
 {
