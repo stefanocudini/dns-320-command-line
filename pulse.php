@@ -117,6 +117,16 @@ $params['p2pSetConfig'] = array(
 	'cmd'=>'p2p_set_config',
 	'tmp_p2p_state'=>''
 );
+$params['p2pGetList'] = array(
+	'cmd'=>'p2p_get_list_by_priority',
+	'page'=>1,
+	'rp'=>20,
+	'sortname'=>'undefined',
+	'sortorder'=>'undefined',
+	'query'=>'',
+	'qtype'=>'',
+	'f_field'=>0
+);
 
 $urls['down'] = BASEURL.'download_mgr.cgi';
 $params['downAddUrl'] = array(
@@ -175,6 +185,9 @@ foreach($opts as $opt=>$optval)
 			}
 			$p2pConf = p2pGetConfig();
 			echo "P2P:\t".((bool)$p2pConf['p2p'] ? 'on':'off');
+	
+			if((bool)$p2pConf['p2p'])
+				p2pPrintList();
 		break;
 /*		case 'down':
 			if(isset($argv[3]))
@@ -360,6 +373,45 @@ function p2pSetConfig($sets=array())
 	return xml2array( http_post_request($urls['p2p'],$params['p2pSetConfig']) );//XMLObj to Array
 }
 
+function p2pGetList()
+{
+	global $urls;
+	global $params;
+
+	$jj = http_post_request($urls['p2p'],$params['p2pGetList']);
+	$jj = preg_replace('/:\s*\'(([^\']|\\\\\')*)\'\s*([},])/e',
+					   "':'.json_encode(stripslashes('$1')).'$3'", $jj);
+	$jj = preg_replace("/([,\{])([a-zA-Z0-9_]+?):/" , "$1\"$2\":", $jj);
+	//correcting not standard JSON!! fuck!!
+	
+	$pp = json_decode($jj,true);
+	$P = array();
+	foreach($pp['rows'] as $pc)
+	{
+		$p = $pc['cell'];
+		if(strstr($p[4],'status_download')) $s = 'download';
+		elseif(strstr($p[4],'icon_stop'))   $s = 'stopped';
+		elseif(strstr($p[4],'status_ok'))   $s = 'complete';
+	
+		preg_match("/.*>(.*)<.*/", $p[0], $f);//file
+		preg_match("/.*>(.*)<.*/", $p[3], $g);//progress
+		$P[]= array('progress'=> $g[1].'%',
+					'status'=>   $s,
+					'speed'=>    $p[5],
+					'file'=>     substrStrip($f[1], 60),
+					'id'=>       $p[7]);
+	}
+	return $P;
+}
+
+function p2pPrintList()
+{
+	$pp = p2pGetList();	
+	echo "\n queue: ".count($pp)."\n";
+	foreach($pp as $p)
+		echo '  '.$p['status']."\t".$p['progress']."\t".$p['speed']."\t".basename($p['file'])."\n";
+}
+
 function downAddUrl($url)
 {
 	global $urls;
@@ -507,6 +559,16 @@ function bytesConvert($bytes)
     $unitCount = 0;
     for(; $bytes > 1024; $unitCount++) $bytes /= 1024;
     return round($bytes,2).$ext[$unitCount];
+}
+
+function substrStrip($string, $length=NULL)
+{
+	if($length==NULL)
+		$length = 50;
+	$stringDisplay = substr($string, 0, $length);
+	if(strlen($string) > $length)
+		$stringDisplay .= '...';
+	return $stringDisplay;
 }
 
 function json_indent($json)
