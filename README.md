@@ -6,5 +6,4 @@ stefano.cudini@gmail.com
 requirements:
 php5-cli
 php5-curl
-simplehtmldom (http://simplehtmldom.sourceforge.net)
 
