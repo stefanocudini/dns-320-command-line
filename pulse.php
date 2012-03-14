@@ -9,10 +9,12 @@ requirements:
 php5-cli
 php5-curl
 */
+define('DEBUG', false);
+
 define('HELP',
-"Usage: pulse.php [OPTIONS] [target[:port]]\n".
-"       target                  hostname or ip target, default: pulse\n".
-"       port                    port number for target, default: 80\n".
+"Usage: pulse.php OPTIONS [host[:port]]\n".
+"       host                    hostname or ip target, default: pulse\n".
+"       port                    port number for host, default: 80\n".
 "       -p,--p2p[=on|off]       get or set p2p client state\n".
 "       -D,--download[=url]     list or add url in http downloader\n".
 "       -c,--download-clear     clear complete http downloads list\n".
@@ -25,6 +27,7 @@ define('HELP',
 "       -h,--help               print this help\n\n");
 
 $options = array(
+		'p::'=> 'p2p::',
 		'D::'=> 'download::',
 		'c'  => 'download-clear',
 		't'  => 'temp',
@@ -35,15 +38,23 @@ $options = array(
 		'r'  => 'restart',				 				 
 		'h'  => 'help');
 $opts = getopt(implode('',array_keys($options)),array_values($options));
-#print_r($opts);
-#print_r($argv);
-#exit(0);
+
+debug(print_r($opts,true));
+debug(print_r($argv,true));
+
+$hostport = array_pop($argv);
+if($hostport{0}!='-')//if not a option
+{
+	if(!checkurl('http://'.$hostport.'/'))
+		die("ERROR HOST\n");
+	define('HOST', $hostport);
+}
+else
+	define('HOST', 'pulse');
+
 
 if(count($opts)==0)
 	help();
-
-
-define('HOST', 'pulse');
 
 define('USER','admin');
 define('PASS','admin');
@@ -257,6 +268,17 @@ foreach($opts as $opt=>$optval)
 
 //end
 
+function debug($var)
+{
+	if(DEBUG)
+		file_put_contents('php://stderr',$var."\n");
+}
+
+function checkurl($url)
+{
+	return (bool)@file_get_contents($url,0,NULL,0,1);
+}
+
 function help()
 {
 	die(HELP);
@@ -407,19 +429,20 @@ function login()
 	global $urls;
 	global $params;
 
-	$resp = http_post_request($urls['login'], $params['loginSet'], true);
+	list($head,$body) = http_post_request($urls['login'], $params['loginSet'], true);
+//login conditions:
 //RESP OK: Location:http://pulse/web/home.html
 //         Set-Cookie:username=admin; path=/
 //RESP ERROR: Location:http://pulse/web/relogin.html
-	return (isset($resp[0]['Set-Cookie']) and strstr($resp[0]['Set-Cookie'],'username='.USER) );
+	return (isset($head['Set-Cookie']) and strstr($head['Set-Cookie'],'username='.USER) );
 }
 
 function http_post_request($url,$pdata,$getHeaders=false)
 {
+	debug("URL: $url");
+	
 	$pdata = is_array($pdata) ? http_build_query($pdata) : $pdata;
 	$ch = curl_init();
-#echo "URL: $url\n";
-//for debug
 	curl_setopt($ch, CURLOPT_URL, $url );
 	curl_setopt($ch, CURLOPT_POSTFIELDS, $pdata);
 	curl_setopt($ch, CURLOPT_POST, 1);
@@ -436,7 +459,7 @@ function http_post_request($url,$pdata,$getHeaders=false)
 		curl_setopt($ch, CURLOPT_HEADER, 1);
 	else
 		curl_setopt($ch, CURLOPT_HEADER, 0);		
-		
+
 	$resp = curl_exec($ch);
 	
 	if($getHeaders)
@@ -516,29 +539,29 @@ function json_indent($json)
 
 function xml_indent($xml)
 {
-  $xml = preg_replace('/(>)(<)(\/*)/', "$1\n$2$3", $xml);
-  $token      = strtok($xml, "\n");
-  $result     = '';
-  $pad        = 0;
-  $matches    = array();
+	$xml = preg_replace('/(>)(<)(\/*)/', "$1\n$2$3", $xml);
+	$token   = strtok($xml, "\n");
+	$result  = '';
+	$pad     = 0;
+	$matches = array();
 
-  while ($token !== false) : 
-    if (preg_match('/.+<\/\w[^>]*>$/', $token, $matches)) : 
-      $indent=0;
-    elseif (preg_match('/^<\/\w/', $token, $matches)) :
-      $pad--;
-    elseif (preg_match('/^<\w[^>]*[^\/]>.*$/', $token, $matches)) :
-      $indent=1;
-    else :
-      $indent = 0; 
-    endif;
-    $line    = str_pad($token, strlen($token)+$pad, ' ', STR_PAD_LEFT);
-    $result .= $line . "\n";
-    $token   = strtok("\n");
-    $pad    += $indent;
-  endwhile; 
-  
-  return $result;
+	while($token!==false):
+		if (preg_match('/.+<\/\w[^>]*>$/', $token, $matches)) : 
+			$indent=0;
+		elseif (preg_match('/^<\/\w/', $token, $matches)) :
+			$pad--;
+		elseif (preg_match('/^<\w[^>]*[^\/]>.*$/', $token, $matches)) :
+			$indent=1;
+		else :
+			$indent = 0; 
+		endif;
+		$line    = str_pad($token, strlen($token)+$pad, ' ', STR_PAD_LEFT);
+		$result .= $line . "\n";
+		$token   = strtok("\n");
+		$pad    += $indent;
+	endwhile; 
+
+	return $result;
 }
 
 ?>
