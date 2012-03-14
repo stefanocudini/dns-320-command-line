@@ -16,8 +16,9 @@ define('HELP',
 "       host                    hostname or ip target, default: pulse\n".
 "       port                    port number for host, default: 80\n".
 "       -p,--p2p[=on|off]       get or set p2p client state\n".
+"       -c,--p2p-clear          clear p2p complete list\n".
 "       -D,--download[=url]     list or add url in http downloader\n".
-"       -c,--download-clear     clear complete http downloads list\n".
+"       -C,--download-clear     clear complete http downloads list\n".
 "       -t,--temp               get temperature inside\n".
 "       -f,--fan=[off|low|high] get or set fan mode\n".
 "       -u,--ups                get ups state\n".
@@ -28,8 +29,9 @@ define('HELP',
 
 $options = array(
 		'p::'=> 'p2p::',
+		'c'  => 'p2p-clear',
 		'D::'=> 'download::',
-		'c'  => 'download-clear',
+		'C'  => 'download-clear',
 		't'  => 'temp',
 		'f::'=> 'fan::',
 		'u'  => 'ups',
@@ -43,7 +45,7 @@ debug(print_r($opts,true));
 debug(print_r($argv,true));
 
 $hostport = array_pop($argv);
-if($hostport{0}!='-')//if not a option
+if($argc>1 and $hostport{0}!='-')//if not a option
 {
 	if(!checkurl('http://'.$hostport.'/'))
 		die("ERROR HOST\n");
@@ -127,6 +129,7 @@ $params['p2pGetList'] = array(
 	'qtype'=>'',
 	'f_field'=>0
 );
+$params['p2pClearList'] = array('cmd'=>'p2p_del_all_completed');
 
 $urls['down'] = BASEURL.'download_mgr.cgi';
 $params['downAddUrl'] = array(
@@ -189,6 +192,15 @@ foreach($opts as $opt=>$optval)
 			if((bool)$p2pConf['p2p'])
 				p2pPrintList();
 		break;
+		case 'c':
+		case 'p2p-clear':
+			$p2pConf = p2pGetConfig();		
+			if((bool)$p2pConf['p2p'])
+			{
+				p2pClearList();
+				p2pPrintList();
+			}
+		break;
 /*		case 'down':
 			if(isset($argv[3]))
 				p2pSetConfig( array('down'=>intval($argv[3])) );
@@ -202,7 +214,6 @@ foreach($opts as $opt=>$optval)
 			echo " up:   ".$p2pConf['bandwidth_upload_rate']."\n";
 		break;
 */
-
 		case 'D':
 		case 'download':
 			if(!empty($optval))
@@ -210,7 +221,7 @@ foreach($opts as $opt=>$optval)
 			downPrintList();
 		break;
 
-		case 'c':
+		case 'C':
 		case 'download-clear':
 			$dd = downGetList();
 			foreach($dd as $d)
@@ -383,15 +394,18 @@ function p2pGetList()
 					   "':'.json_encode(stripslashes('$1')).'$3'", $jj);
 	$jj = preg_replace("/([,\{])([a-zA-Z0-9_]+?):/" , "$1\"$2\":", $jj);
 	//correcting not standard JSON!! fuck!!
-	
+
 	$pp = json_decode($jj,true);
+	
+	#print_r($pp);
+	
 	$P = array();
 	foreach($pp['rows'] as $pc)
 	{
 		$p = $pc['cell'];
-		if(strstr($p[4],'status_download')) $s = 'download';
-		elseif(strstr($p[4],'icon_stop'))   $s = 'stopped';
-		elseif(strstr($p[4],'status_ok'))   $s = 'complete';
+		if(strstr($p[4],'status_download'))   $s = 'download';
+		elseif(strstr($p[4],'status_queue'))  $s = 'stopped';
+		elseif(strstr($p[4],'status_upload')) $s = 'complete';
 	
 		preg_match("/.*>(.*)<.*/", $p[0], $f);//file
 		preg_match("/.*>(.*)<.*/", $p[3], $g);//progress
@@ -402,6 +416,13 @@ function p2pGetList()
 					'id'=>       $p[7]);
 	}
 	return $P;
+}
+
+function p2pClearList()
+{
+	global $urls;
+	global $params;
+	http_post_request($urls['p2p'],$params['p2pClearList']);
 }
 
 function p2pPrintList()
