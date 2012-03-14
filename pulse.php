@@ -1,7 +1,5 @@
 #!/usr/bin/env php
 <?
-#header("Content-type: text/plain");
-
 /*
 SIMPLE COMMAND-LINE INTERFACE for D-LINK SHARECENTER DNS-320
 Copyleft Stefano Cudini 2012
@@ -12,28 +10,32 @@ php5-cli
 php5-curl
 simplehtmldom (http://simplehtmldom.sourceforge.net)
 */
-$options = array('H:' =>'host:',
-				 'p::'=>'p2p::',
-				 'D::'=>'download::',
-				 'c' =>'download-clear',
-				 't' =>'temp',
- 				 'u' =>'ups',
-				 'd' =>'disks',
-				 's' =>'shutdown',
-				 'r' =>'restart',				 				 
- 				 'h' =>'help');
 define('HELP',
-	"Usage: pulse.php [OPTIONS]\n".
-	"       -H,--host           hostname or ip target, where sharecenter dns-320\n".
-	"       -p,--p2p[=on|off]   get or set p2p client state\n".
-	"       -D,--download[=url] list or add url in http downloader\n".
-	"       -c,--download-clear clear complete downloads from list\n".
-	"       -t,--temp           get temperature inside\n".
-	"       -u,--ups            get ups state\n".
-	"       -d,--disks          get disks usage\n".
-	"       -s,--shutdown       power off the system\n".
-	"       -r,--restart        restart the system\n".
-	"       -h,--help           print this help\n\n");
+"Usage: pulse.php [OPTIONS]\n".
+"       -H,--host               hostname or ip target, default: pulse\n".
+"       -p,--p2p[=on|off]       get or set p2p client state\n".
+"       -D,--download[=url]     list or add url in http downloader\n".
+"       -c,--download-clear     clear complete http downloads list\n".
+"       -t,--temp               get temperature inside\n".
+"       -f,--fan=[off|low|high] get or set fan mode\n".
+"       -u,--ups                get ups state\n".
+"       -d,--disks              get disks usage\n".
+"       -s,--shutdown           power off the system\n".
+"       -r,--restart            restart the system\n".
+"       -h,--help               print this help\n\n");
+
+$options = array(
+		'H:' => 'host:',
+		'p::'=> 'p2p::',
+		'D::'=> 'download::',
+		'c'  => 'download-clear',
+		't'  => 'temp',
+		'f::'=> 'fan::',
+		'u'  => 'ups',
+		'd'  => 'disks',
+		's'  => 'shutdown',
+		'r'  => 'restart',				 				 
+		'h'  => 'help');
 $opts = getopt(implode('',array_keys($options)),array_values($options));
 #print_r($opts);
 #exit(0);
@@ -59,7 +61,16 @@ define('CJAR', basename(__FILE__).'_cookies.txt');
 define('UAGENT', isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : "Mozilla/5.0 (Windows; U; Windows NT 5.1; it-it; rv:1.8.1.3) Gecko/20070309 Firefox/3.0.0.6");
 
 $urls['login'] = "http://".HOST."/cgi-bin/login_mgr.cgi";
-$params['loginSet'] = "cmd=login&username=".USER."&pwd=".PASS."&port=&f_type=1&f_username=&pre_pwd=admin&C1=ON&ssl_port=443";
+$params['loginSet'] = array(
+	'cmd'=>'login',
+	'username'=>USER,
+	'pwd'=>PASS,
+	'port'=>'',
+	'f_type'=>1,
+	'f_username'=>'',
+	'pre_pwd'=>USER,
+	'C1'=>'ON',
+	'ssl_port'=>443);
 
 $urls['stat'] = "http://".HOST."/cgi-bin/status_mgr.cgi";
 $params['statGetStatus'] = array('cmd'=>'cgi_get_status');
@@ -70,6 +81,10 @@ $params['diskStatus'] = array('cmd'=>'Status_HDInfo');
 $urls['sys'] = "http://".HOST."/cgi-bin/system_mgr.cgi";
 $params['sysRestart'] = array('cmd'=>'cgi_restart');
 $params['sysShutdown'] = array('cmd'=>'cgi_shutdown');
+$params['sysGetFan'] = array('cmd'=>'cgi_get_power_mgr_xml');
+$params['sysSetFan'] = array(
+	'cmd'=>'cgi_fan',
+	'f_fan_type'=>0);
 
 $urls['p2p'] = "http://".HOST."/cgi-bin/p2p.cgi";
 $params['p2pStatus'] = array(
@@ -133,6 +148,8 @@ $params['downGetList'] = array(
 	'f_field'=>USER
 );
 
+//start
+
 login() or die("ERROR LOGIN\n");
 
 foreach($opts as $opt=>$optval)
@@ -152,7 +169,7 @@ foreach($opts as $opt=>$optval)
 			}
 			$p2pConf = p2pGetConfig();
 			echo "P2P:\t".((bool)$p2pConf['p2p'] ? 'on':'off');
-		break;	
+		break;
 /*		case 'down':
 			if(isset($argv[3]))
 				p2pSetConfig( array('down'=>intval($argv[3])) );
@@ -166,31 +183,23 @@ foreach($opts as $opt=>$optval)
 			echo " up:   ".$p2pConf['bandwidth_upload_rate']."\n";
 		break;
 */
+
 		case 'D':
 		case 'download':
 			if(!empty($optval))
-			{
 				downAddUrl($optval);
-				sleep(2);
-			}
-			$dd = downGetList();
-			echo "DOWNLOADS: ".count($dd)."\n";
-			foreach($dd as $d)
-				echo ' '.$d['status']."\t".$d['progress']."\t".$d['speed']."\t\t".basename($d['url'])."\n";
+			downPrintList();
 		break;
+
 		case 'c':
 		case 'download-clear':
 			$dd = downGetList();
 			foreach($dd as $d)
 				if($d['status']=='complete')
 					downDelUrl($d['id']);
-			$dd = downGetList();
-			echo "DOWNLOADS: ".count($dd)."\n";
-			foreach($dd as $d)
-				echo ' '.$d['status']."\t".$d['progress']."\t".$d['speed']."\t\t".basename($d['url'])."\n";
+			downPrintList();
 		break;
-
-		
+				
 		case 'u':
 		case 'ups':
 			$u = upsGetInfo();
@@ -202,6 +211,23 @@ foreach($opts as $opt=>$optval)
 			echo "TEMP:\t".sysGetTemp();
 		break;
 
+		case 'f':
+		case 'fan':
+			switch($optval)
+			{
+				case 'off':	 //0: Auto (off/low/high)
+					sysSetFan(0);
+				break;
+				case 'low':	 //1: Auto (low/high)
+					sysSetFan(1);
+				break;
+				case 'high': //2: Manual (always high)
+					sysSetFan(2);
+				break;
+			}
+			echo "FAN:\t".sysGetFan();
+		break;
+		
 		case 'd':
 		case 'disks':
 			$d = diskGetInfo();
@@ -233,6 +259,8 @@ foreach($opts as $opt=>$optval)
 	}
 	echo "\n";
 }
+
+//end
 
 function help()
 {
@@ -269,6 +297,24 @@ function sysGetTemp()
 	$sys = xml2array( http_post_request($urls['stat'],$params['statGetStatus']) );
 	$t = next( explode(':',$sys['temperature']) );
 	return $t;
+}
+
+function sysGetFan()
+{
+	global $urls;
+	global $params;	
+	$sys = xml2array( http_post_request($urls['sys'],$params['sysGetFan']) );
+	$ff = array('off','low','high');
+	$f = $ff[ $sys['fan'] ];
+	return $f;
+}
+
+function sysSetFan($mode)
+{
+	global $urls;
+	global $params;
+	$params['sysSetFan']['f_fan_type'] = $mode;
+	http_post_request($urls['sys'],$params['sysSetFan']);
 }
 
 function diskGetInfo()
@@ -323,24 +369,40 @@ function downGetList()
 	global $urls;
 	global $params;
 	$L = array();
-	$D = xml2array( http_post_request($urls['down'],$params['downGetList']) );
-	if(isset($D['row']) and count($D['row']))
-		foreach($D['row'] as $U)
-		{
-			$u = isset($U['cell']) ? $U['cell'] : $U;
-			
-			if(strstr($u[3],'status_download')) $s = 'download';
-			elseif(strstr($u[3],'icon_stop'))   $s = 'stopped';
-			elseif(strstr($u[3],'status_ok'))   $s = 'complete';
-			
-			preg_match("/.*>(.*)<.*/", $u[2], $p);
-			$L[]= array('progress'=> $p[1].'%',
-						'status'=>   $s,
-						'speed'=>    $u[4].'s',
-						'url'=>      $u[0],
-						'id'=>       $u[8]);
-		}
+	$dd = xml2array( http_post_request($urls['down'],$params['downGetList']) );
+#	var_export($dd);
+	echo json_indent(json_encode($dd));
+	echo "----------\n";
+
+#	if(!is_array($dd['row']))
+#		$dd['row'] = array(0=>$dd['row']);
+#	if(isset($dd['row']['cell']))
+#		$dd['row'][]= $dd['row']['cell'];
+	
+	foreach($dd['row'] as $U)
+	{
+		$u = $U['cell'];
+		if(strstr($u[3],'status_download')) $s = 'download';
+		elseif(strstr($u[3],'icon_stop'))   $s = 'stopped';
+		elseif(strstr($u[3],'status_ok'))   $s = 'complete';
+	
+		preg_match("/.*>(.*)<.*/", $u[2], $p);
+		$L[]= array('progress'=> $p[1].'%',
+					'status'=>   $s,
+					'speed'=>    $u[4].'s',
+					'url'=>      $u[0],
+					'id'=>       $u[8]);
+	}
 	return $L;
+}
+
+function downPrintList()
+{
+	sleep(1);//useful after downAddUrl()
+	$dd = downGetList();
+	echo "DOWNLOADS: ".count($dd)."\n";
+	foreach($dd as $d)
+		echo ' '.$d['status']."\t".$d['progress']."\t".$d['speed']."\t\t".basename($d['url'])."\n";
 }
 
 function login()
