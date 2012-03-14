@@ -9,6 +9,7 @@ requirements:
 php5-cli
 php5-curl
 */
+
 define('DEBUG', false);
 
 define('HELP',
@@ -39,7 +40,11 @@ $options = array(
 		's'  => 'shutdown',
 		'r'  => 'restart',				 				 
 		'h'  => 'help');
-$opts = getopt(implode('',array_keys($options)),array_values($options));
+
+if(version_compare(PHP_VERSION, '5.3.0', '<'))
+	$opts = getopt(implode('',array_keys($options)));
+else
+	$opts = getopt(implode('',array_keys($options)),array_values($options));
 
 debug(print_r($opts,true));
 debug(print_r($argv,true));
@@ -78,7 +83,8 @@ $params['loginSet'] = array(
 	'f_username'=>'',
 	'pre_pwd'=>USER,
 	'C1'=>'ON',
-	'ssl_port'=>443);
+	'ssl_port'=>443
+);
 
 $urls['stat'] = BASEURL.'status_mgr.cgi';
 $params['statGetStatus'] = array('cmd'=>'cgi_get_status');
@@ -92,7 +98,8 @@ $params['sysShutdown'] = array('cmd'=>'cgi_shutdown');
 $params['sysGetFan'] = array('cmd'=>'cgi_get_power_mgr_xml');
 $params['sysSetFan'] = array(
 	'cmd'=>'cgi_fan',
-	'f_fan_type'=>0);
+	'f_fan_type'=>0
+);
 
 $urls['p2p'] = BASEURL.'p2p.cgi';
 $params['p2pStatus'] = array(
