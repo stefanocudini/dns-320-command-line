@@ -15,6 +15,7 @@ simplehtmldom (http://simplehtmldom.sourceforge.net)
 $options = array('H:' =>'host:',
 				 'p::'=>'p2p::',
 				 'D::'=>'download::',
+				 'c' =>'download-clear',
 				 't' =>'temp',
  				 'u' =>'ups',
 				 'd' =>'disks',
@@ -26,6 +27,7 @@ define('HELP',
 	"       -H,--host           hostname or ip target, where sharecenter dns-320\n".
 	"       -p,--p2p[=on|off]   get or set p2p client state\n".
 	"       -D,--download[=url] list or add url in http downloader\n".
+	"       -c,--download-clear clear complete downloads from list\n".
 	"       -t,--temp           get temperature inside\n".
 	"       -u,--ups            get ups state\n".
 	"       -d,--disks          get disks usage\n".
@@ -115,6 +117,11 @@ $params['downAddUrl'] = array(
 	'cmd'=>'Downloads_Schedule_Add',
 	'rp'=>10
 );
+$params['downDelUrl'] = array(
+	'cmd'=>'Downloads_Schedule_Del',
+	'f_idx'=>'',
+	'f_field'=>USER
+);
 $params['downGetList'] = array(
 	'cmd'=>'Downloads_Schedule_List',
 	'page'=>1,
@@ -166,18 +173,23 @@ foreach($opts as $opt=>$optval)
 				downAddUrl($optval);
 				sleep(2);
 			}
-			$D = downGetList();
-			$cd = count($D['row']);
-			echo "DOWNLOADS: ".$cd."\n";
-			if($cd)
-				foreach($D['row'] as $U)
-				{
-					$u = $U['cell'][0];	//url
-					$s = $U['cell'][4].'s';	//speed
-					preg_match("/.*>(.*)<.*/",$U['cell'][2],$p);//progress
-					echo ' '.$p[1]."%\t$s\t\t".basename($u)."\n";
-				}
+			$dd = downGetList();
+			echo "DOWNLOADS: ".count($dd)."\n";
+			foreach($dd as $d)
+				echo ' '.$d['status']."\t".$d['progress']."\t".$d['speed']."\t\t".basename($d['url'])."\n";
 		break;
+		case 'c':
+		case 'download-clear':
+			$dd = downGetList();
+			foreach($dd as $d)
+				if($d['status']=='complete')
+					downDelUrl($d['id']);
+			$dd = downGetList();
+			echo "DOWNLOADS: ".count($dd)."\n";
+			foreach($dd as $d)
+				echo ' '.$d['status']."\t".$d['progress']."\t".$d['speed']."\t\t".basename($d['url'])."\n";
+		break;
+
 		
 		case 'u':
 		case 'ups':
@@ -295,17 +307,41 @@ function downAddUrl($url)
 	$params['downAddUrl']['f_hour']= date("h");
 	$params['downAddUrl']['f_min']= date("i");
 	//control time zone from dns-320 and where execute script
-		
 	http_post_request($urls['down'],$params['downAddUrl']);
+}
+
+function downDelUrl($idurl)
+{
+	global $urls;
+	global $params;
+	$params['downDelUrl']['f_idx']= $idurl;
+	http_post_request($urls['down'],$params['downDelUrl']);
 }
 
 function downGetList()
 {
 	global $urls;
 	global $params;
-	return xml2array( http_post_request($urls['down'],$params['downGetList']) );
+	$L = array();
+	$D = xml2array( http_post_request($urls['down'],$params['downGetList']) );
+	if(isset($D['row']) and count($D['row']))
+		foreach($D['row'] as $U)
+		{
+			$u = isset($U['cell']) ? $U['cell'] : $U;
+			
+			if(strstr($u[3],'status_download')) $s = 'download';
+			elseif(strstr($u[3],'icon_stop'))   $s = 'stopped';
+			elseif(strstr($u[3],'status_ok'))   $s = 'complete';
+			
+			preg_match("/.*>(.*)<.*/", $u[2], $p);
+			$L[]= array('progress'=> $p[1].'%',
+						'status'=>   $s,
+						'speed'=>    $u[4].'s',
+						'url'=>      $u[0],
+						'id'=>       $u[8]);
+		}
+	return $L;
 }
-
 
 function login()
 {
