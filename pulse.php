@@ -11,8 +11,9 @@ php5-curl
 simplehtmldom (http://simplehtmldom.sourceforge.net)
 */
 define('HELP',
-"Usage: pulse.php [OPTIONS]\n".
-"       -H,--host               hostname or ip target, default: pulse\n".
+"Usage: pulse.php [OPTIONS] [target[:port]]\n".
+"       target                  hostname or ip target, default: pulse\n".
+"       port                    port number for target, default: 80\n".
 "       -p,--p2p[=on|off]       get or set p2p client state\n".
 "       -D,--download[=url]     list or add url in http downloader\n".
 "       -c,--download-clear     clear complete http downloads list\n".
@@ -25,8 +26,6 @@ define('HELP',
 "       -h,--help               print this help\n\n");
 
 $options = array(
-		'H:' => 'host:',
-		'p::'=> 'p2p::',
 		'D::'=> 'download::',
 		'c'  => 'download-clear',
 		't'  => 'temp',
@@ -37,7 +36,8 @@ $options = array(
 		'r'  => 'restart',				 				 
 		'h'  => 'help');
 $opts = getopt(implode('',array_keys($options)),array_values($options));
-#print_r($opts);
+print_r($opts);
+print_r($argv);
 #exit(0);
 
 if(count($opts)==0)
@@ -60,7 +60,9 @@ define('DOWNDIR','Volume_1');//target path for http download
 define('CJAR', basename(__FILE__).'_cookies.txt');
 define('UAGENT', isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : "Mozilla/5.0 (Windows; U; Windows NT 5.1; it-it; rv:1.8.1.3) Gecko/20070309 Firefox/3.0.0.6");
 
-$urls['login'] = "http://".HOST."/cgi-bin/login_mgr.cgi";
+define('BASEURL', 'http://'.HOST.'/cgi-bin/');
+
+$urls['login'] = "login_mgr.cgi";
 $params['loginSet'] = array(
 	'cmd'=>'login',
 	'username'=>USER,
@@ -72,13 +74,13 @@ $params['loginSet'] = array(
 	'C1'=>'ON',
 	'ssl_port'=>443);
 
-$urls['stat'] = "http://".HOST."/cgi-bin/status_mgr.cgi";
+$urls['stat'] = BASEURL.'status_mgr.cgi';
 $params['statGetStatus'] = array('cmd'=>'cgi_get_status');
 
-$urls['disk'] = "http://".HOST."/cgi-bin/dsk_mgr.cgi";
+$urls['disk'] = BASEURL.'dsk_mgr.cgi';
 $params['diskStatus'] = array('cmd'=>'Status_HDInfo');
 
-$urls['sys'] = "http://".HOST."/cgi-bin/system_mgr.cgi";
+$urls['sys'] = BASEURL.'system_mgr.cgi';
 $params['sysRestart'] = array('cmd'=>'cgi_restart');
 $params['sysShutdown'] = array('cmd'=>'cgi_shutdown');
 $params['sysGetFan'] = array('cmd'=>'cgi_get_power_mgr_xml');
@@ -86,7 +88,7 @@ $params['sysSetFan'] = array(
 	'cmd'=>'cgi_fan',
 	'f_fan_type'=>0);
 
-$urls['p2p'] = "http://".HOST."/cgi-bin/p2p.cgi";
+$urls['p2p'] = BASEURL.'p2p.cgi';
 $params['p2pStatus'] = array(
 	'cmd'=>'p2p_get_list_by_priority',
 	'page'=>1,
@@ -112,7 +114,7 @@ $params['p2pSetConfig'] = array(
 	'tmp_p2p_state'=>''
 );
 
-$urls['down'] = "http://".HOST."/cgi-bin/download_mgr.cgi";
+$urls['down'] = BASEURL.'download_mgr.cgi';
 $params['downAddUrl'] = array(
 	'f_downloadtype'=>0,
 	'f_login_method'=>1,
@@ -404,6 +406,8 @@ function downPrintList()
 	foreach($dd as $d)
 		echo ' '.$d['status']."\t".$d['progress']."\t".$d['speed']."\t\t".basename($d['url'])."\n";
 }
+////////////////////////////////////////
+
 
 function login()
 {
@@ -411,21 +415,26 @@ function login()
 	global $params;
 		
 	require_once('simple_html_dom.php');	//http://simplehtmldom.sourceforge.net
-	$html = str_get_html( http_post_request($urls['login'],$params['loginSet']) );
+	$resp = http_post_request($urls['login'], $params['loginSet']);
+//	print_r($resp);
+//RESP: Location:http://pulse/web/home.html
+//RESP: Set-Cookie:username=admin; path=/
+
+//Location:http://pulse/web/relogin.html	
+	$html = str_get_html( $resp );
 	$ldiv = $html->find("div[id=login]");
-	
 	return !(is_array($ldiv) and count($ldiv)>0);
+//return true;
 }
 
-function http_post_request($url,$pdata)
+function http_post_request($url,$pdata,$getHeaders=false)
 {
 	$pdata = is_array($pdata) ? http_build_query($pdata) : $pdata;
 	$ch = curl_init();
 	curl_setopt($ch, CURLOPT_URL, $url );
 	curl_setopt($ch, CURLOPT_POSTFIELDS, $pdata);
 	curl_setopt($ch, CURLOPT_POST, 1);
-	curl_setopt($ch, CURLOPT_HEADER, 0);
-#	curl_setopt($ch, CURLOPT_HTTPHEADER, array("Connection: close"));	
+#	curl_setopt($ch, CURLOPT_HTTPHEADER, array("Connection: close"));
 	curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
 	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 	curl_setopt($ch, CURLOPT_COOKIEJAR, CJAR);
@@ -433,9 +442,27 @@ function http_post_request($url,$pdata)
 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 	curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows; U; Windows NT 5.1; it-it; rv:1.8.1.3) Gecko/20070309 Firefox/3.0.0.6");
 	curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-	$a = curl_exec($ch);
+
+	if($getHeaders)
+		curl_setopt($ch, CURLOPT_HEADER, 1);
+	else
+		curl_setopt($ch, CURLOPT_HEADER, 0);		
+		
+	$resp = curl_exec($ch);
+	
+	if($getHeaders)
+	{
+		$info = curl_getinfo($ch);
+		$head = array();
+		foreach( explode("\r\n",substr($resp,0,$info['header_size'])) as $row )
+			if($row!='')
+				$head[ current(explode(': ',$row)) ] = next(explode(': ',$row));
+	
+		$body = substr($resp, -$info['download_content_length']);  	
+		$resp =  array($head, $body);
+	}
 	curl_close($ch);
-	return $a;
+	return $resp;
 }
 
 /*function http_get_request($url)//GET
