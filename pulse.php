@@ -10,7 +10,7 @@ php5-cli
 php5-curl
 */
 
-define('DEBUG', false);
+define('DEBUG', true);
 
 define('HELP',
 "Usage: pulse.php OPTIONS [host[:port]]\n".
@@ -68,7 +68,7 @@ define('PASS','admin');
 
 define('DOWNDIR','Volume_1');//target path for http download
 
-define('CJAR', basename(__FILE__).'_cookies.txt');
+define('CJAR', '_cookies.txt');
 define('UAGENT', isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : "Mozilla/5.0 (Windows; U; Windows NT 5.1; it-it; rv:1.8.1.3) Gecko/20070309 Firefox/3.0.0.6");
 
 define('BASEURL', 'http://'.HOST.'/cgi-bin/');
@@ -510,6 +510,7 @@ function login()
 	global $params;
 
 	list($head,$body) = http_post_request($urls['login'], $params['loginSet'], true);
+	debug(print_r($head,true));
 //login conditions:
 //RESP OK: Location:http://pulse/web/home.html
 //         Set-Cookie:username=admin; path=/
@@ -517,7 +518,7 @@ function login()
 	return (isset($head['Set-Cookie']) and strstr($head['Set-Cookie'],'username='.USER) );
 }
 
-function http_post_request($url,$pdata,$getHeaders=false)
+function http_post_request($url, $pdata, $getHeaders=false)
 {
 	debug("URL: $url");
 	
