@@ -8,7 +8,6 @@ stefano.cudini@gmail.com
 requirements:
 php5-cli
 php5-curl
-simplehtmldom (http://simplehtmldom.sourceforge.net)
 */
 define('HELP',
 "Usage: pulse.php [OPTIONS] [target[:port]]\n".
@@ -36,21 +35,15 @@ $options = array(
 		'r'  => 'restart',				 				 
 		'h'  => 'help');
 $opts = getopt(implode('',array_keys($options)),array_values($options));
-print_r($opts);
-print_r($argv);
+#print_r($opts);
+#print_r($argv);
 #exit(0);
 
 if(count($opts)==0)
 	help();
 
-if(isset($opts['H']))
-	define('HOST', $opts['H']);
-	
-elseif(isset($opts['host']))
-	define('HOST', $opts['host']);
-	
-else
-	define('HOST', 'pulse');
+
+define('HOST', 'pulse');
 
 define('USER','admin');
 define('PASS','admin');
@@ -62,7 +55,7 @@ define('UAGENT', isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'
 
 define('BASEURL', 'http://'.HOST.'/cgi-bin/');
 
-$urls['login'] = "login_mgr.cgi";
+$urls['login'] = BASEURL.'login_mgr.cgi';
 $params['loginSet'] = array(
 	'cmd'=>'login',
 	'username'=>USER,
@@ -413,24 +406,20 @@ function login()
 {
 	global $urls;
 	global $params;
-		
-	require_once('simple_html_dom.php');	//http://simplehtmldom.sourceforge.net
-	$resp = http_post_request($urls['login'], $params['loginSet']);
-//	print_r($resp);
-//RESP: Location:http://pulse/web/home.html
-//RESP: Set-Cookie:username=admin; path=/
 
-//Location:http://pulse/web/relogin.html	
-	$html = str_get_html( $resp );
-	$ldiv = $html->find("div[id=login]");
-	return !(is_array($ldiv) and count($ldiv)>0);
-//return true;
+	$resp = http_post_request($urls['login'], $params['loginSet'], true);
+//RESP OK: Location:http://pulse/web/home.html
+//         Set-Cookie:username=admin; path=/
+//RESP ERROR: Location:http://pulse/web/relogin.html
+	return (isset($resp[0]['Set-Cookie']) and strstr($resp[0]['Set-Cookie'],'username='.USER) );
 }
 
 function http_post_request($url,$pdata,$getHeaders=false)
 {
 	$pdata = is_array($pdata) ? http_build_query($pdata) : $pdata;
 	$ch = curl_init();
+#echo "URL: $url\n";
+//for debug
 	curl_setopt($ch, CURLOPT_URL, $url );
 	curl_setopt($ch, CURLOPT_POSTFIELDS, $pdata);
 	curl_setopt($ch, CURLOPT_POST, 1);
@@ -455,9 +444,9 @@ function http_post_request($url,$pdata,$getHeaders=false)
 		$info = curl_getinfo($ch);
 		$head = array();
 		foreach( explode("\r\n",substr($resp,0,$info['header_size'])) as $row )
-			if($row!='')
-				$head[ current(explode(': ',$row)) ] = next(explode(': ',$row));
-	
+			$head[ current(explode(': ',$row)) ] = next(explode(': ',$row));
+		//split http head in headers key=>value
+
 		$body = substr($resp, -$info['download_content_length']);  	
 		$resp =  array($head, $body);
 	}
@@ -526,40 +515,27 @@ function json_indent($json)
 }
 
 function xml_indent($xml)
-{    
-  // add marker linefeeds to aid the pretty-tokeniser (adds a linefeed between all tag-end boundaries)
+{
   $xml = preg_replace('/(>)(<)(\/*)/', "$1\n$2$3", $xml);
-  
-  // now indent the tags
   $token      = strtok($xml, "\n");
-  $result     = ''; // holds formatted version as it is built
-  $pad        = 0; // initial indent
-  $matches    = array(); // returns from preg_matches()
-  
-  // scan each line and adjust indent based on opening/closing tags
+  $result     = '';
+  $pad        = 0;
+  $matches    = array();
+
   while ($token !== false) : 
-  
-    // test for the various tag states
-    
-    // 1. open and closing tags on same line - no change
     if (preg_match('/.+<\/\w[^>]*>$/', $token, $matches)) : 
       $indent=0;
-    // 2. closing tag - outdent now
     elseif (preg_match('/^<\/\w/', $token, $matches)) :
       $pad--;
-    // 3. opening tag - don't pad this one, only subsequent tags
     elseif (preg_match('/^<\w[^>]*[^\/]>.*$/', $token, $matches)) :
       $indent=1;
-    // 4. no indentation needed
     else :
       $indent = 0; 
     endif;
-    
-    // pad the line with the required number of leading spaces
     $line    = str_pad($token, strlen($token)+$pad, ' ', STR_PAD_LEFT);
-    $result .= $line . "\n"; // add to the cumulative result, with linefeed
-    $token   = strtok("\n"); // get the next token
-    $pad    += $indent; // update the pad size for subsequent lines    
+    $result .= $line . "\n";
+    $token   = strtok("\n");
+    $pad    += $indent;
   endwhile; 
   
   return $result;
