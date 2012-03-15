@@ -487,15 +487,17 @@ function downGetList()
 	$L = array();
 	$dd = xml2array( http_post_request($urls['down'],$params['downGetList']) );
 #	var_export($dd);
-	echo json_indent(json_encode($dd));
-	echo "----------\n";
+#	echo json_indent(json_encode($dd));
 
-#	if(!is_array($dd['row']))
-#		$dd['row'] = array(0=>$dd['row']);
-#	if(isset($dd['row']['cell']))
-#		$dd['row'][]= $dd['row']['cell'];
+	if(!isset($dd['row']))
+		return $L;
+		
+	if(isset($dd['row'][0]))//multiple result
+		$rows = $dd['row'];
+	else	//only one result
+		$rows = array($dd['row']);
 	
-	foreach($dd['row'] as $U)
+	foreach($rows as $U)
 	{
 		$u = $U['cell'];
 		if(strstr($u[3],'status_download')) $s = 'download';
@@ -529,7 +531,7 @@ function login()
 	global $params;
 
 	list($head,$body) = http_post_request($urls['login'], $params['loginSet'], true);
-	debug(print_r($head,true));
+#	debug(print_r($head,true));
 //login conditions:
 //RESP OK: Location:http://pulse/web/home.html
 //         Set-Cookie:username=admin; path=/
