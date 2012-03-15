@@ -13,20 +13,23 @@ php5-curl
 define('DEBUG', true);
 
 define('HELP',
-"Usage: pulse.php OPTIONS [host[:port]]\n".
-"       host                    hostname or ip target, default: pulse\n".
-"       port                    port number for host, default: 80\n".
-"       -p,--p2p[=on|off]       get or set p2p client state\n".
-"       -c,--p2p-clear          clear p2p complete list\n".
-"       -D,--download[=url]     list or add url in http downloader\n".
-"       -C,--download-clear     clear complete http downloads list\n".
-"       -t,--temp               get temperature inside\n".
-"       -f,--fan=[off|low|high] get or set fan mode\n".
-"       -u,--ups                get ups state\n".
-"       -d,--disks              get disks usage\n".
-"       -s,--shutdown           power off the system\n".
-"       -r,--restart            restart the system\n".
-"       -h,--help               print this help\n\n");
+"
+Usage: pulse.php OPTIONS [host[:port]]
+       host                    hostname or ip target, default: pulse
+       port                    port number for host, default: 80
+       -p,--p2p[=on|off]       get or set p2p client state
+       -c,--p2p-clear          clear p2p complete list
+       -D,--download[=url]     list or add url in http downloader
+       -C,--download-clear     clear complete http downloads list
+       -t,--temp               get temperature inside
+       -f,--fan=[off|low|high] get or set fan mode
+       -u,--ups                get ups state
+       -d,--disks              get disks usage
+       -s,--shutdown           power off the system
+       -r,--restart            restart the system
+       -h,--help               print this help
+
+");
 
 $options = array(
 		'p::'=> 'p2p::',
@@ -236,7 +239,7 @@ foreach($opts as $opt=>$optval)
 					downDelUrl($d['id']);
 			downPrintList();
 		break;
-				
+
 		case 'u':
 		case 'ups':
 			$u = upsGetInfo();
@@ -280,11 +283,13 @@ foreach($opts as $opt=>$optval)
 
 		case 's':
 		case 'shutdown':
+			if(!confirm("Are you sure you want to poweroff NAS now?")) break;
 			echo "Shutdown system...";
 			sysShutdown();
 		break;
 		case 'r':
 		case 'restart':
+			if(!confirm("Are you sure you want to restart NAS now?")) break;
 			echo "Restart system...";
 			sysRestart();
 		break;
@@ -527,13 +532,13 @@ function http_post_request($url, $pdata, $getHeaders=false)
 	curl_setopt($ch, CURLOPT_URL, $url );
 	curl_setopt($ch, CURLOPT_POSTFIELDS, $pdata);
 	curl_setopt($ch, CURLOPT_POST, 1);
-#	curl_setopt($ch, CURLOPT_HTTPHEADER, array("Connection: close"));
 	curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
 	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 	curl_setopt($ch, CURLOPT_COOKIEJAR, CJAR);
 	curl_setopt($ch, CURLOPT_COOKIEFILE, CJAR);
 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-	curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows; U; Windows NT 5.1; it-it; rv:1.8.1.3) Gecko/20070309 Firefox/3.0.0.6");
+	curl_setopt($ch, CURLOPT_USERAGENT, UAGENT);
+#	curl_setopt($ch, CURLOPT_HTTPHEADER, array("Connection: close"));
 	curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
 
 	if($getHeaders)
@@ -556,6 +561,12 @@ function http_post_request($url, $pdata, $getHeaders=false)
 	}
 	curl_close($ch);
 	return $resp;
+}
+
+function confirm($text)
+{
+	echo "$text [y/n] ";
+	return trim(fgets(STDIN))=='y';
 }
 
 /*function http_get_request($url)//GET
