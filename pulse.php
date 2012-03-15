@@ -14,26 +14,28 @@ define('DEBUG', true);
 
 define('HELP',"
 Usage: pulse.php OPTIONS [host[:port]]
-       host                    hostname or ip target, default: pulse
-       port                    port number for host, default: 80
-       -p,--p2p[=on|off]       get or set p2p client state
-       -c,--p2p-clear          clear p2p complete list
-       -D,--download[=url]     list or add url in http downloader
-       -C,--download-clear     clear complete http downloads list
-       -t,--temp               get temperature inside
-       -T,--time               get date and time of nas
-       -f,--fan=[off|low|high] get or set fan mode
-       -u,--ups                get ups state
-       -d,--disks              get disks usage
-       -s,--shutdown           power off the system
-       -r,--restart            restart the system
-       -h,--help               print this help
+       host                       hostname or ip target, default: pulse
+       port                       port number for host, default: 80
+       -p,--p2p[=on|off]          get or set p2p client state
+       -c,--p2p-clear             clear p2p complete list
+       -l,--p2p-limit[=down[,up]] get or set p2p speed limit, unlimit: -1
+       -D,--download[=url]        list or add url in http downloader
+       -C,--download-clear        clear complete http downloads list
+       -t,--temp                  get temperature inside
+       -T,--time                  get date and time of nas
+       -f,--fan=[off|low|high]    get or set fan mode
+       -u,--ups                   get ups state
+       -d,--disks                 get disks usage
+       -s,--shutdown              power off the system
+       -r,--restart               restart the system
+       -h,--help                  print this help
 
 ");
 
 $options = array(
 		'p::'=> 'p2p::',
 		'c'  => 'p2p-clear',
+		'l::'=> 'p2p-limit::',
 		'D::'=> 'download::',
 		'C'  => 'download-clear',
 		't'  => 'temp',
@@ -121,13 +123,13 @@ $params['p2pGetConfig'] = array('cmd'=>'p2p_get_setting_info');
 $params['p2pSetConfig'] = array(
 	'f_P2P'=>1,
 	'f_auto_download'=>1,
-	'f_port_custom'=>true,
+	'f_port_custom'=>false,
 	'f_seed_type'=>0,
 	'f_encryption'=>1,
-	'f_flow_control_schedule_max_download_rate'=>-1,
-	'f_flow_control_schedule_max_upload_rate'=>-1,
+	'f_flow_control_schedule_max_download_rate'=> -1,
+	'f_flow_control_schedule_max_upload_rate'=> -1,
 	'f_bandwidth_auto'=>false,
-	'f_flow_control_schedule'=>'111111111112221111112222111111111112221111112222111111111112221111112222111111111112221111112222111111111112221111112222111111111112221111112222111111111112221111112222',
+	'f_flow_control_schedule'=>'111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111',
 	'cmd'=>'p2p_set_config',
 	'tmp_p2p_state'=>''
 );
@@ -142,6 +144,8 @@ $params['p2pGetList'] = array(
 	'f_field'=>0
 );
 $params['p2pClearList'] = array('cmd'=>'p2p_del_all_completed');
+
+$urls['p2pGetSpeed'] = 'http://'.HOST.'/xml/p2p_total_speed.xml';
 
 $urls['down'] = BASEURL.'download_mgr.cgi';
 $params['downAddUrl'] = array(
@@ -199,10 +203,15 @@ foreach($opts as $opt=>$optval)
 				break;
 			}
 			$p2pConf = p2pGetConfig();
-			echo "P2P:\t".((bool)$p2pConf['p2p'] ? 'on':'off');
-	
-			if((bool)$p2pConf['p2p'])
-				p2pPrintList();
+			$p2pOn = (bool)$p2pConf['p2p'];
+			echo "P2P: ".($p2pOn ? 'on':'off')."\n";
+
+			if(!$p2pOn) break;
+			
+			$p2pSpeed = p2pGetSpeed();
+			echo " speed:  ".$p2pSpeed['down']." KBps / ".$p2pSpeed['up']." KBps\n";
+			echo " limits: ".$p2pConf['bandwidth_downlaod_rate']." KBps / ".$p2pConf['bandwidth_upload_rate']." KBps\n";
+			p2pPrintList();
 		break;
 		case 'c':
 		case 'p2p-clear':
@@ -213,19 +222,20 @@ foreach($opts as $opt=>$optval)
 				p2pPrintList();
 			}
 		break;
-/*		case 'down':
-			if(isset($argv[3]))
-				p2pSetConfig( array('down'=>intval($argv[3])) );
+		case 'l':
+		case 'p2p-limit':
+			$optval = strstr(',',$optval) ? $optval : $optval.',';
+			list($d,$u) = @explode(',',$optval);
+				
+			if(isset($d) or isset($u))
+				p2pSetConfig( array('down'=>intval($d?$d:-1),'up'=>intval($u?$u:-1)) );
+
 			$p2pConf = p2pGetConfig();
-			echo " down: ".$p2pConf['bandwidth_downlaod_rate']."\n";
+			echo " limits: \n";
+			echo "  down: ".$p2pConf['bandwidth_downlaod_rate']."\n";
+			echo "  up:   ".$p2pConf['bandwidth_upload_rate']."\n";
 		break;
-		case 'up':
-			if(isset($argv[3]))
-				p2pSetConfig( array('up'=>intval($argv[3])) );
-			$p2pConf = p2pGetConfig();
-			echo " up:   ".$p2pConf['bandwidth_upload_rate']."\n";
-		break;
-*/
+
 		case 'D':
 		case 'download':
 			if(!empty($optval))
@@ -408,7 +418,11 @@ function p2pSetConfig($sets=array())
 	if(isset($sets['on']))   $params['p2pSetConfig']['f_P2P']= $sets['on'] ? 1:0;
 	if(isset($sets['down'])) $params['p2pSetConfig']['f_flow_control_schedule_max_download_rate']= $sets['down'];
 	if(isset($sets['up']))   $params['p2pSetConfig']['f_flow_control_schedule_max_upload_rate']= $sets['up'];
-	return xml2array( http_post_request($urls['p2p'],$params['p2pSetConfig']) );//XMLObj to Array
+
+	debug(print_r($params['p2pSetConfig'],true));
+	
+	http_post_request($urls['p2p'],$params['p2pSetConfig']);
+	sleep(3);
 }
 
 function p2pGetList()
@@ -423,7 +437,6 @@ function p2pGetList()
 	//correcting not standard JSON!! fuck!!
 	
 	$pp = json_decode($jj,true);
-	#print_r($pp);
 	
 	$P = array();
 	foreach($pp['rows'] as $pc)
@@ -444,6 +457,14 @@ function p2pGetList()
 	return $P;
 }
 
+function p2pPrintList()
+{
+	$pp = p2pGetList();	
+	echo " files: ".count($pp)."\n";
+	foreach($pp as $p)
+		echo '  '.$p['status']."\t".$p['progress']."\t".$p['speed']."\t".basename($p['file'])."\n";
+}
+
 function p2pClearList()
 {
 	global $urls;
@@ -451,12 +472,11 @@ function p2pClearList()
 	http_post_request($urls['p2p'],$params['p2pClearList']);
 }
 
-function p2pPrintList()
+function p2pGetSpeed()
 {
-	$pp = p2pGetList();	
-	echo "\n queue: ".count($pp)."\n";
-	foreach($pp as $p)
-		echo '  '.$p['status']."\t".$p['progress']."\t".$p['speed']."\t".basename($p['file'])."\n";
+	global $urls;
+	$s = xml2array( http_post_request($urls['p2pGetSpeed'],array()) );
+	return array('down'=>$s['download_rate'], 'up'=>$s['upload_rate']);
 }
 
 function downAddUrl($url)
@@ -470,6 +490,7 @@ function downAddUrl($url)
 	$params['downAddUrl']['f_min']= date("i");
 	//control time zone from dns-320 and where execute script
 	http_post_request($urls['down'],$params['downAddUrl']);
+	sleep(2);
 }
 
 function downDelUrl($idurl)
@@ -478,6 +499,7 @@ function downDelUrl($idurl)
 	global $params;
 	$params['downDelUrl']['f_idx']= $idurl;
 	http_post_request($urls['down'],$params['downDelUrl']);
+	sleep(2);
 }
 
 function downGetList()
@@ -516,7 +538,6 @@ function downGetList()
 
 function downPrintList()
 {
-	sleep(1);//useful after downAddUrl()
 	$dd = downGetList();
 	echo "DOWNLOADS: ".count($dd)."\n";
 	foreach($dd as $d)
@@ -539,7 +560,7 @@ function login()
 	return (isset($head['Set-Cookie']) and strstr($head['Set-Cookie'],'username='.USER) );
 }
 
-function http_post_request($url, $pdata, $getHeaders=false)
+function http_post_request($url, $pdata=null, $getHeaders=false)
 {
 	debug("URL: $url");
 	
@@ -548,6 +569,7 @@ function http_post_request($url, $pdata, $getHeaders=false)
 	curl_setopt($ch, CURLOPT_URL, $url );
 	curl_setopt($ch, CURLOPT_POSTFIELDS, $pdata);
 	curl_setopt($ch, CURLOPT_POST, 1);
+	
 	curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
 	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 	curl_setopt($ch, CURLOPT_COOKIEJAR, CJAR);
