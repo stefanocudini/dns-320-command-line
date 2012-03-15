@@ -12,8 +12,7 @@ php5-curl
 
 define('DEBUG', true);
 
-define('HELP',
-"
+define('HELP',"
 Usage: pulse.php OPTIONS [host[:port]]
        host                    hostname or ip target, default: pulse
        port                    port number for host, default: 80
@@ -22,6 +21,7 @@ Usage: pulse.php OPTIONS [host[:port]]
        -D,--download[=url]     list or add url in http downloader
        -C,--download-clear     clear complete http downloads list
        -t,--temp               get temperature inside
+       -T,--time               get date and time of nas
        -f,--fan=[off|low|high] get or set fan mode
        -u,--ups                get ups state
        -d,--disks              get disks usage
@@ -37,6 +37,7 @@ $options = array(
 		'D::'=> 'download::',
 		'C'  => 'download-clear',
 		't'  => 'temp',
+		'T'  => 'time',		
 		'f::'=> 'fan::',
 		'u'  => 'ups',
 		'd'  => 'disks',
@@ -69,7 +70,7 @@ if(count($opts)==0)
 define('USER','admin');
 define('PASS','admin');
 
-define('DOWNDIR','Volume_1');//target path for http download
+define('DOWNDIR','Volume_1');//target path inside nas for http download
 
 define('CJAR', '_cookies.txt');
 define('UAGENT', isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : "Mozilla/5.0 (Windows; U; Windows NT 5.1; it-it; rv:1.8.1.3) Gecko/20070309 Firefox/3.0.0.6");
@@ -103,6 +104,7 @@ $params['sysSetFan'] = array(
 	'cmd'=>'cgi_fan',
 	'f_fan_type'=>0
 );
+$params['sysGetTime'] = array('cmd'=>'cgi_get_time');
 
 $urls['p2p'] = BASEURL.'p2p.cgi';
 $params['p2pStatus'] = array(
@@ -251,6 +253,11 @@ foreach($opts as $opt=>$optval)
 			echo "TEMP:\t".sysGetTemp();
 		break;
 
+		case 'T':
+		case 'time':
+			echo "TIME:\t".sysGetTime();
+		break;
+		
 		case 'f':
 		case 'fan':
 			switch($optval)
@@ -352,6 +359,14 @@ function sysGetTemp()
 	return $t;
 }
 
+function sysGetTime()
+{
+	global $urls;
+	global $params;	
+	$t = xml2array( http_post_request($urls['sys'],$params['sysGetTime']) );
+	return $t['day'].'/'.$t['mon'].'/'.$t['year'].', '.$t['hour'].':'.$t['min'].':'.$t['sec'];
+}
+
 function sysGetFan()
 {
 	global $urls;
@@ -406,9 +421,8 @@ function p2pGetList()
 					   "':'.json_encode(stripslashes('$1')).'$3'", $jj);
 	$jj = preg_replace("/([,\{])([a-zA-Z0-9_]+?):/" , "$1\"$2\":", $jj);
 	//correcting not standard JSON!! fuck!!
-
-	$pp = json_decode($jj,true);
 	
+	$pp = json_decode($jj,true);
 	#print_r($pp);
 	
 	$P = array();
