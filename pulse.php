@@ -10,7 +10,7 @@ php5-cli
 php5-curl
 */
 
-define('DEBUG', true);
+define('DEBUG', false);
 
 define('HELP',"
 Usage: pulse.php OPTIONS [host[:port]]
@@ -23,7 +23,7 @@ Usage: pulse.php OPTIONS [host[:port]]
        -C,--download-clear        clear complete http downloads list
        -t,--temp                  get temperature inside
        -T,--time                  get date and time of nas
-       -f,--fan=[off|low|high]    get or set fan mode
+       -f,--fan[=off|low|high]    get or set fan mode
        -u,--ups                   get ups state
        -d,--disks                 get disks usage
        -s,--shutdown              power off the system
@@ -562,14 +562,13 @@ function login()
 
 function http_post_request($url, $pdata=null, $getHeaders=false)
 {
-	debug("URL: $url");
-	
 	$pdata = is_array($pdata) ? http_build_query($pdata) : $pdata;
+		
 	$ch = curl_init();
 	curl_setopt($ch, CURLOPT_URL, $url );
 	curl_setopt($ch, CURLOPT_POSTFIELDS, $pdata);
 	curl_setopt($ch, CURLOPT_POST, 1);
-	
+	curl_setopt($ch, CURLOPT_HEADER, 1);	
 	curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
 	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 	curl_setopt($ch, CURLOPT_COOKIEJAR, CJAR);
@@ -578,26 +577,28 @@ function http_post_request($url, $pdata=null, $getHeaders=false)
 	curl_setopt($ch, CURLOPT_USERAGENT, UAGENT);
 #	curl_setopt($ch, CURLOPT_HTTPHEADER, array("Connection: close"));
 	curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-
-	if($getHeaders)
-		curl_setopt($ch, CURLOPT_HEADER, 1);
-	else
-		curl_setopt($ch, CURLOPT_HEADER, 0);		
-
 	$resp = curl_exec($ch);
-	
-	if($getHeaders)
-	{
-		$info = curl_getinfo($ch);
-		$head = array();
-		foreach( explode("\r\n",substr($resp,0,$info['header_size'])) as $row )
-			$head[ current(explode(': ',$row)) ] = next(explode(': ',$row));
-		//split http head in headers key=>value
-
-		$body = substr($resp, -$info['download_content_length']);  	
-		$resp =  array($head, $body);
-	}
+	$info = curl_getinfo($ch);
 	curl_close($ch);
+	
+	$body = ''; $head = array();
+	$headRows = explode("\r\n",substr($resp,0, $info['header_size']));
+	foreach($headRows as $row)
+		$head[ current(explode(': ',$row)) ] = next(explode(': ',$row));
+	//split http head in headers key=>value
+
+	if($info['download_content_length']>0)
+		$body = substr($resp, -$info['download_content_length']);
+	else
+		$body = next(explode("\r\n\r\n",$resp));
+	
+	$resp = $getHeaders ? array($head, $body) : $body;
+	
+	debug("POST:     $url\n".
+		  "PARAMS:   $pdata\n".
+		  "RESPONSE: ".implode("\n".
+		  "          ",$headRows));
+
 	return $resp;
 }
 
