@@ -76,6 +76,7 @@ define('DOWNDIR','Volume_1');//target path inside nas for http download
 
 define('CJAR', '_cookies.txt');
 define('UAGENT', isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : "Mozilla/5.0 (Windows; U; Windows NT 5.1; it-it; rv:1.8.1.3) Gecko/20070309 Firefox/3.0.0.6");
+define('SDELAY',2);	//delay after post setconfig request, in seconds
 
 define('BASEURL', 'http://'.HOST.'/cgi-bin/');
 
@@ -123,12 +124,12 @@ $params['p2pGetConfig'] = array('cmd'=>'p2p_get_setting_info');
 $params['p2pSetConfig'] = array(
 	'f_P2P'=>1,
 	'f_auto_download'=>1,
-	'f_port_custom'=>false,
+	'f_port_custom'=>'false',
 	'f_seed_type'=>0,
 	'f_encryption'=>1,
 	'f_flow_control_schedule_max_download_rate'=> -1,
 	'f_flow_control_schedule_max_upload_rate'=> -1,
-	'f_bandwidth_auto'=>false,
+	'f_bandwidth_auto'=>'false',
 	'f_flow_control_schedule'=>'111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111',
 	'cmd'=>'p2p_set_config',
 	'tmp_p2p_state'=>''
@@ -201,45 +202,51 @@ foreach($opts as $opt=>$optval)
 				case 'off':
 					p2pSetConfig( array('on'=>false) );
 				break;
-			}
-			$p2pConf = p2pGetConfig();
-			$p2pOn = (bool)$p2pConf['p2p'];
-			echo "P2P: ".($p2pOn ? 'on':'off')."\n";
-
-			if(!$p2pOn) break;
+			}	
+			if(p2pCheckOn())
+				echo "P2P: On\n";
+			else
+				die("P2P: Off\n");
 			
 			$p2pSpeed = p2pGetSpeed();
-			echo " speed:  ".$p2pSpeed['down']." KBps / ".$p2pSpeed['up']." KBps\n";
-			echo " limits: ".$p2pConf['bandwidth_downlaod_rate']." KBps / ".$p2pConf['bandwidth_upload_rate']." KBps\n";
+			echo " Speed:  ".$p2pSpeed['down']." KBps / ".$p2pSpeed['up']." KBps\n";
+			$p2pConf = p2pGetConfig();
+			echo " Limits: ".$p2pConf['bandwidth_downlaod_rate']." KBps / ".$p2pConf['bandwidth_upload_rate']." KBps\n";
 			p2pPrintList();
 		break;
+		
 		case 'c':
 		case 'p2p-clear':
-			$p2pConf = p2pGetConfig();		
-			if((bool)$p2pConf['p2p'])
-			{
-				p2pClearList();
-				p2pPrintList();
-			}
+			if(p2pCheckOn())
+				echo "P2P: On\n";
+			else
+				die("P2P: Off\n");
+			
+			p2pClearList();
+			p2pPrintList();
 		break;
+		
 		case 'l':
 		case 'p2p-limit':
+			if(p2pCheckOn())
+				echo "P2P: On\n";
+			else
+				die("P2P: Off\n");
+			
 			$optval = strstr(',',$optval) ? $optval : $optval.',';
-			list($d,$u) = @explode(',',$optval);
-				
-			if(isset($d) or isset($u))
-				p2pSetConfig( array('down'=>intval($d?$d:-1),'up'=>intval($u?$u:-1)) );
+			list($down,$up) = @explode(',',$optval);
+			
+			if(!empty($down) or !empty($up))
+				p2pSetConfig( array('down'=>intval($down?$down:-1), 'up'=>intval($up?$up:-1)) );
 
 			$p2pConf = p2pGetConfig();
-			echo " limits: \n";
-			echo "  down: ".$p2pConf['bandwidth_downlaod_rate']."\n";
-			echo "  up:   ".$p2pConf['bandwidth_upload_rate']."\n";
+			echo " Limits: ".$p2pConf['bandwidth_downlaod_rate']." KBps / ".$p2pConf['bandwidth_upload_rate']." KBps\n";
 		break;
 
 		case 'D':
 		case 'download':
 			if(!empty($optval))
-				downAddUrl($optval);
+				downAddUrl($optval) or die("ERROR URL: ".$optval);
 			downPrintList();
 		break;
 
@@ -247,7 +254,7 @@ foreach($opts as $opt=>$optval)
 		case 'download-clear':
 			$dd = downGetList();
 			foreach($dd as $d)
-				if($d['status']=='complete')
+				if($d['status']=='complete' or $d['status']=='failed')
 					downDelUrl($d['id']);
 			downPrintList();
 		break;
@@ -255,12 +262,12 @@ foreach($opts as $opt=>$optval)
 		case 'u':
 		case 'ups':
 			$u = upsGetInfo();
-			echo "UPS:\t".($u ? $u['stat']."\n ".' battery: '.$u['bat'] : 'off');
+			echo "UPS:\t".($u ? $u['stat']."\n ".' Battery: '.$u['bat'] : 'Off');
 		break;
 
 		case 't':
 		case 'temp':
-			echo "TEMP:\t".sysGetTemp();
+			echo "TEMPERATURE:\t".sysGetTemp().'°C';
 		break;
 
 		case 'T':
@@ -293,8 +300,8 @@ foreach($opts as $opt=>$optval)
 			{
 				$disk['free_size'] = $disk['total_size'] - $disk['used_size'];
 				echo " ".$disk['shared_name'].': '.bytesConvert($disk['total_size']*1000)."\n".
- 					 "   free: ".bytesConvert($disk['free_size']*1000)."\n".
-					 "   used: ".$disk['used_rate']."\n\n";
+ 					 "   Free: ".bytesConvert($disk['free_size']*1000)."\n".
+					 "   Used: ".$disk['used_rate']."\n";
 			}
 		break;
 
@@ -304,6 +311,7 @@ foreach($opts as $opt=>$optval)
 			echo "Shutdown system...";
 			sysShutdown();
 		break;
+		
 		case 'r':
 		case 'restart':
 			if(!confirm("Are you sure you want to restart NAS now?")) break;
@@ -404,6 +412,12 @@ function diskGetInfo()
 	return $sys;
 }
 
+function p2pCheckOn()
+{
+	$p2pConf = p2pGetConfig();
+	return  (bool)$p2pConf['p2p'];
+}
+
 function p2pGetConfig()
 {
 	global $urls;
@@ -419,10 +433,10 @@ function p2pSetConfig($sets=array())
 	if(isset($sets['down'])) $params['p2pSetConfig']['f_flow_control_schedule_max_download_rate']= $sets['down'];
 	if(isset($sets['up']))   $params['p2pSetConfig']['f_flow_control_schedule_max_upload_rate']= $sets['up'];
 
-	debug(print_r($params['p2pSetConfig'],true));
+	debug("p2pSetConfig:\n".print_r($params['p2pSetConfig'],true));
 	
 	http_post_request($urls['p2p'],$params['p2pSetConfig']);
-	sleep(3);
+	sleep(SDELAY);
 }
 
 function p2pGetList()
@@ -460,9 +474,9 @@ function p2pGetList()
 function p2pPrintList()
 {
 	$pp = p2pGetList();	
-	echo " files: ".count($pp)."\n";
+	echo " Torrents: ".count($pp)."\n";
 	foreach($pp as $p)
-		echo '  '.$p['status']."\t".$p['progress']."\t".$p['speed']."\t".basename($p['file'])."\n";
+		echo '  '.ucwords($p['status'])."\t".$p['progress']."\t".$p['speed']."\t".basename($p['file'])."\n";
 }
 
 function p2pClearList()
@@ -483,14 +497,17 @@ function downAddUrl($url)
 {
 	global $urls;
 	global $params;
-
+	
+	//add check url controll syntax 
+	
 	$params['downAddUrl']['f_URL']= $url;
 	$params['downAddUrl']['f_date']= date("m/d/Y");
 	$params['downAddUrl']['f_hour']= date("h");
 	$params['downAddUrl']['f_min']= date("i");
 	//control time zone from dns-320 and where execute script
 	http_post_request($urls['down'],$params['downAddUrl']);
-	sleep(2);
+	sleep(SDELAY);
+	return true;
 }
 
 function downDelUrl($idurl)
@@ -499,7 +516,7 @@ function downDelUrl($idurl)
 	global $params;
 	$params['downDelUrl']['f_idx']= $idurl;
 	http_post_request($urls['down'],$params['downDelUrl']);
-	sleep(2);
+	sleep(SDELAY);
 }
 
 function downGetList()
@@ -508,22 +525,19 @@ function downGetList()
 	global $params;
 	$L = array();
 	$dd = xml2array( http_post_request($urls['down'],$params['downGetList']) );
-#	var_export($dd);
-#	echo json_indent(json_encode($dd));
 
 	if(!isset($dd['row']))
 		return $L;
-		
-	if(isset($dd['row'][0]))//multiple result
-		$rows = $dd['row'];
-	else	//only one result
-		$rows = array($dd['row']);
+
+	$rows = isset($dd['row'][0]) ? $dd['row'] : array($dd['row']);
+	//patch for single/multiple downGetList response
 	
 	foreach($rows as $U)
 	{
 		$u = $U['cell'];
 		if(strstr($u[3],'status_download')) $s = 'download';
 		elseif(strstr($u[3],'icon_stop'))   $s = 'stopped';
+		elseif(strstr($u[3],'status_fail')) $s = 'failed';
 		elseif(strstr($u[3],'status_ok'))   $s = 'complete';
 	
 		preg_match("/.*>(.*)<.*/", $u[2], $p);
@@ -541,7 +555,7 @@ function downPrintList()
 	$dd = downGetList();
 	echo "DOWNLOADS: ".count($dd)."\n";
 	foreach($dd as $d)
-		echo ' '.$d['status']."\t".$d['progress']."\t".$d['speed']."\t\t".basename($d['url'])."\n";
+		echo ' '.ucwords($d['status'])."\t".$d['progress']."\t".$d['speed']."\t\t".basename($d['url'])."\n";
 }
 ////////////////////////////////////////
 
@@ -554,9 +568,8 @@ function login()
 	list($head,$body) = http_post_request($urls['login'], $params['loginSet'], true);
 #	debug(print_r($head,true));
 //login conditions:
-//RESP OK: Location:http://pulse/web/home.html
-//         Set-Cookie:username=admin; path=/
-//RESP ERROR: Location:http://pulse/web/relogin.html
+//RESP OK: "Set-Cookie:username=admin; path=/"
+//RESP ERROR: "Location:http://host/web/relogin.html"
 	return (isset($head['Set-Cookie']) and strstr($head['Set-Cookie'],'username='.USER) );
 }
 
@@ -607,25 +620,6 @@ function confirm($text)
 	echo "$text [y/n] ";
 	return trim(fgets(STDIN))=='y';
 }
-
-/*function http_get_request($url)//GET
-{
-	$ch = curl_init();
-	curl_setopt($ch, CURLOPT_URL, $url );
-	curl_setopt($ch, CURLOPT_POST, 0);
-	curl_setopt($ch, CURLOPT_HEADER, 0);//non mostra header ricevuto
-	curl_setopt($ch, CURLOPT_HTTPHEADER, array("Connection: keep-alive","Keep-Alive: 300"));
-	curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
-	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-	curl_setopt($ch, CURLOPT_COOKIEJAR, CJAR);
-	curl_setopt($ch, CURLOPT_COOKIEFILE, CJAR);
-	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-	curl_setopt($ch, CURLOPT_USERAGENT, UAGENT);
-	curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-	$a = curl_exec($ch);
-	curl_close($ch);
-	return $a;
-}//*/
 
 function xml2array($xml)
 {
