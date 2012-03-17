@@ -10,7 +10,7 @@ php5-cli
 php5-curl
 */
 
-define('DEBUG', false);
+define('DEBUG', true);
 
 define('HELP',"
 Usage: pulse.php OPTIONS [host[:port]]
@@ -21,6 +21,7 @@ Usage: pulse.php OPTIONS [host[:port]]
        -l,--p2p-limit[=down[,up]] get or set p2p speed limit, unlimit: -1
        -D,--download[=url]        list or add url in http downloader
        -C,--download-clear        clear complete http downloads list
+       -n,--nfs[=on|off]          get or set nfs service
        -t,--temp                  get temperature inside
        -T,--time                  get date and time of nas
        -f,--fan[=off|low|high]    get or set fan mode
@@ -38,6 +39,7 @@ $options = array(
 		'l::'=> 'p2p-limit::',
 		'D::'=> 'download::',
 		'C'  => 'download-clear',
+		'n::'=> 'nfs::',		
 		't'  => 'temp',
 		'T'  => 'time',		
 		'f::'=> 'fan::',
@@ -184,6 +186,15 @@ $params['downGetList'] = array(
 	'f_field'=>USER
 );
 
+$urls['nfs'] = BASEURL.'account_mgr.cgi';
+$params['nfsSetConfig'] = array(
+	'cmd'=>'cgi_nfs_enable',
+	'nfs_status'=>1
+);
+$params['nfsGetConfig'] = array(
+	'cmd'=>'cgi_get_nfs_info'
+);
+
 //start
 
 login() or die("ERROR LOGIN\n");
@@ -202,7 +213,7 @@ foreach($opts as $opt=>$optval)
 				case 'off':
 					p2pSetConfig( array('on'=>false) );
 				break;
-			}	
+			}
 			if(p2pCheckOn())
 				echo "P2P: On\n";
 			else
@@ -259,6 +270,21 @@ foreach($opts as $opt=>$optval)
 			downPrintList();
 		break;
 
+		case 'n':
+		case 'nfs':
+			switch($optval)
+			{
+				case 'on':
+					nfsSetConfig( array('on'=>true) );
+				break;
+				case 'off':
+					nfsSetConfig( array('on'=>false) );
+				break;
+			}
+			$nfsConf = nfsGetConfig();
+			echo "NFS: ".($nfsConf['enable']?'On':'Off');
+		break;
+		
 		case 'u':
 		case 'ups':
 			$u = upsGetInfo();
@@ -558,6 +584,26 @@ function downPrintList()
 	foreach($dd as $d)
 		echo ' '.ucwords($d['status'])."\t".$d['progress']."\t".$d['speed']."\t\t".basename($d['url'])."\n";
 }
+
+function nfsSetConfig($sets=array())
+{
+	global $urls;
+	global $params;
+	if(isset($sets['on'])) $params['nfsSetConfig']['nfs_status']= $sets['on'] ? 1:0;
+
+	debug("nfsSetConfig:\n".print_r($params['nfsSetConfig'],true));
+	
+	http_post_request($urls['nfs'],$params['nfsSetConfig']);
+	sleep(SDELAY);
+}
+
+function nfsGetConfig()
+{
+	global $urls;
+	global $params;
+	return xml2array( http_post_request($urls['nfs'],$params['nfsGetConfig']) );
+}
+
 ////////////////////////////////////////
 
 
