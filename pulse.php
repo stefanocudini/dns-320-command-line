@@ -262,7 +262,8 @@ foreach($opts as $opt=>$optval)
 		case 'u':
 		case 'ups':
 			$u = upsGetInfo();
-			echo "UPS:\t".($u ? $u['stat']."\n ".' Battery: '.$u['bat'] : 'Off');
+			echo "UPS:\t".($u ? $u['stat']."\n".
+			     " Battery: ".$u['bat'] : 'Off');
 		break;
 
 		case 't':
@@ -300,8 +301,8 @@ foreach($opts as $opt=>$optval)
 			{
 				$disk['free_size'] = $disk['total_size'] - $disk['used_size'];
 				echo " ".$disk['shared_name'].': '.bytesConvert($disk['total_size']*1000)."\n".
- 					 "   Free: ".bytesConvert($disk['free_size']*1000)."\n".
-					 "   Used: ".$disk['used_rate']."\n";
+ 					 "  Free: ".bytesConvert($disk['free_size']*1000)."\n".
+					 "  Used: ".$disk['used_rate']."\n";
 			}
 		break;
 
@@ -543,7 +544,7 @@ function downGetList()
 		preg_match("/.*>(.*)<.*/", $u[2], $p);
 		$L[]= array('progress'=> $p[1].'%',
 					'status'=>   $s,
-					'speed'=>    $u[4].'s',
+					'speed'=>    $u[4].'ps',
 					'url'=>      $u[0],
 					'id'=>       $u[8]);
 	}
