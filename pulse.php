@@ -23,9 +23,10 @@ Usage: pulse.php OPTIONS [host[:port]]
        -C,--download-clear        clear complete http downloads list
        -L,--download-list[=file]  add urls from file list
        -n,--nfs[=on|off]          get or set nfs service
+       -f,--ftp[=on|off]          get or set ftp service
        -t,--temp                  get temperature inside
        -T,--time                  get date and time of nas
-       -f,--fan[=off|low|high]    get or set fan mode
+       -F,--fan[=off|low|high]    get or set fan mode
        -u,--ups                   get ups state
        -d,--disks                 get disks usage
        -s,--shutdown              power off the system
@@ -41,10 +42,11 @@ $options = array(
 		'D::'=> 'download::',
 		'C'  => 'download-clear',
 		'L:' => 'download-list:',
-		'n::'=> 'nfs::',		
+		'n::'=> 'nfs::',
+		'f::'=> 'ftp::',
 		't'  => 'temp',
 		'T'  => 'time',		
-		'f::'=> 'fan::',
+		'F::'=> 'fan::',
 		'u'  => 'ups',
 		'd'  => 'disks',
 		's'  => 'shutdown',
@@ -188,12 +190,12 @@ $params['downGetList'] = array(
 );
 
 $urls['nfs'] = URLCGI.'account_mgr.cgi';
+$params['nfsGetConfig'] = array(
+	'cmd'=>'cgi_get_nfs_info'
+);
 $params['nfsSetConfig'] = array(
 	'cmd'=>'cgi_nfs_enable',
 	'nfs_status'=>1
-);
-$params['nfsGetConfig'] = array(
-	'cmd'=>'cgi_get_nfs_info'
 );
 $params['nfsGetList'] = array(
 	'cmd'=>'cgi_get_session',
@@ -209,6 +211,44 @@ $params['nfsGetInfo'] = array(
 	'cmd'=>'cgi_get_share_info',
 	'name'=>''//share name
 );
+$urls['ftp'] = URLCGI.'app_mgr.cgi';
+$params['ftpGetConfig'] = array(
+	'cmd'=>'FTP_Server_Get_Config'
+);
+$params['ftpSetConfig'] = array(
+	'cmd'=>'FTP_Server_Enable',
+	'f_state'=>1
+);
+
+/*$urls['iso'] = URLCGI.'isomount_mgr.cgi';
+$params['isoGetList'] = array(
+	'cmd'=>'cgi_get_iso_share',
+	'page'=>1,
+	'rp'=>10,
+	'sortname'=>'undefined',
+	'sortorder'=>'undefined',
+	'query'=>'',
+	'qtype'=>'',
+	'f_field'=>'false'
+);
+$params['isoAddShare'] = array(
+	'cmd'=>'cgi_set_iso_share',
+	'path'=>'/mnt/HD/HD_b2/progs/Adobe Dreamweaver CS5.iso',
+	'name'=>'Adobe Dreamweaver CS5',
+	'comment'=>'',
+	'read_list'=>'#nobody#,#@allaccount#',
+	'invalid_users'=>'',
+	'ftp'=>'true',
+	'ftp_anonymous'=>'n'
+);
+$params['isoDelShare'] = array(
+	'cmd'=>'cgi_del_iso_share',
+	'sharename'=>'Adobe Dreamweaver CS5',
+	'path'=>'/mnt/isoMount/Adobe Dreamweaver CS5',
+	'host'=>'*'
+);//*/
+
+
 //start
 
 login() or die("ERROR LOGIN\n");
@@ -309,6 +349,21 @@ foreach($opts as $opt=>$optval)
 			nfsPrintList();
 		break;
 		
+		case 'f':
+		case 'ftp':
+			switch($optval)
+			{
+				case 'on':
+					ftpSetConfig( array('on'=>true) );
+				break;
+				case 'off':
+					ftpSetConfig( array('on'=>false) );
+				break;
+			}
+			$ftpConf = ftpGetConfig();
+			echo "FTP: ".($ftpConf['state']?'On':'Off');
+		break;
+				
 		case 'u':
 		case 'ups':
 			$u = upsGetInfo();
@@ -326,7 +381,7 @@ foreach($opts as $opt=>$optval)
 			echo "TIME:\t".sysGetTime();
 		break;
 		
-		case 'f':
+		case 'F':
 		case 'fan':
 			switch($optval)
 			{
@@ -610,6 +665,13 @@ function downPrintList()
 		echo ' '.ucwords($d['status'])."\t".$d['progress']."\t".$d['speed']."\t\t".basename($d['url'])."\n";
 }
 
+function nfsGetConfig()
+{
+	global $urls;
+	global $params;
+	return xml2array( http_post_request($urls['nfs'],$params['nfsGetConfig']) );
+}
+
 function nfsSetConfig($sets=array())
 {
 	global $urls;
@@ -620,13 +682,6 @@ function nfsSetConfig($sets=array())
 	
 	http_post_request($urls['nfs'],$params['nfsSetConfig']);
 	sleep(SDELAY);
-}
-
-function nfsGetConfig()
-{
-	global $urls;
-	global $params;
-	return xml2array( http_post_request($urls['nfs'],$params['nfsGetConfig']) );
 }
 
 function nfsGetInfo($name)//info about a nfs share
@@ -667,7 +722,29 @@ function nfsPrintList()
 							$n['host'].
 							($n['write']?',rw':',ro').
 							($n['recycle']?',recycle':'')."\n";
-}						
+}
+
+
+function ftpGetConfig()
+{
+	global $urls;
+	global $params;
+	return xml2array( http_post_request($urls['ftp'],$params['ftpGetConfig']) );
+}
+
+function ftpSetConfig($sets=array())
+{
+	global $urls;
+	global $params;
+	
+	if(isset($sets['on'])) $params['ftpSetConfig']['f_state']= $sets['on'] ? 1:0;
+
+	debug("ftpSetConfig:\n".print_r($params['ftpSetConfig'],true));
+	
+	http_post_request($urls['ftp'],$params['ftpSetConfig']);
+	sleep(SDELAY);
+}
+				
 ////////////////////////////////////////
 
 

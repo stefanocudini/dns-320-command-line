@@ -16,5 +16,6 @@ get temperature,
 get or set fan mode, 
 get ups state, 
 get disks usage, 
+get nfs shares,
 shutdown and restart system
 
