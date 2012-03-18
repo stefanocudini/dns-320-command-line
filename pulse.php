@@ -10,7 +10,7 @@ php5-cli
 php5-curl
 */
 
-define('DEBUG', true);
+define('DEBUG', false);
 
 define('HELP',"
 Usage: pulse.php OPTIONS [host[:port]]
@@ -21,6 +21,7 @@ Usage: pulse.php OPTIONS [host[:port]]
        -l,--p2p-limit[=down[,up]] get or set p2p speed limit, unlimit: -1
        -D,--download[=url]        list or add url in http downloader
        -C,--download-clear        clear complete http downloads list
+       -L,--download-list[=file]  add urls from file list
        -n,--nfs[=on|off]          get or set nfs service
        -t,--temp                  get temperature inside
        -T,--time                  get date and time of nas
@@ -39,6 +40,7 @@ $options = array(
 		'l::'=> 'p2p-limit::',
 		'D::'=> 'download::',
 		'C'  => 'download-clear',
+		'L:' => 'download-list:',
 		'n::'=> 'nfs::',		
 		't'  => 'temp',
 		'T'  => 'time',		
@@ -46,7 +48,7 @@ $options = array(
 		'u'  => 'ups',
 		'd'  => 'disks',
 		's'  => 'shutdown',
-		'r'  => 'restart',				 				 
+		'r'  => 'restart',
 		'h'  => 'help');
 
 if(version_compare(PHP_VERSION, '5.3.0', '<'))
@@ -55,10 +57,9 @@ else
 	$opts = getopt(implode('',array_keys($options)),array_values($options));
 
 debug(print_r($opts,true));
-debug(print_r($argv,true));
 
-$hostport = array_pop($argv);
-if($argc>1 and $hostport{0}!='-')//if not a option
+$hostport = array_pop($argv);//last parameter
+if($argc>1 and $hostport{0}!='-')//if isn't option
 {
 	if(!checkurl('http://'.$hostport.'/'))
 		die("ERROR HOST\n");
@@ -79,7 +80,6 @@ define('DOWNDIR','Volume_1');//target path inside nas for http download
 define('CJAR', '_cookies.txt');
 define('UAGENT', isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : "Mozilla/5.0 (Windows; U; Windows NT 5.1; it-it; rv:1.8.1.3) Gecko/20070309 Firefox/3.0.0.6");
 define('SDELAY',2);	//delay after post setconfig request, in seconds
-
 define('BASEURL', 'http://'.HOST.'/cgi-bin/');
 
 $urls['login'] = BASEURL.'login_mgr.cgi';
@@ -194,7 +194,20 @@ $params['nfsSetConfig'] = array(
 $params['nfsGetConfig'] = array(
 	'cmd'=>'cgi_get_nfs_info'
 );
-
+$params['nfsGetList'] = array(
+	'cmd'=>'cgi_get_session',
+	'page'=>1,
+	'rp'=>10,
+	'sortname'=>'undefined',
+	'sortorder'=>'undefined',
+	'query'=>'',
+	'qtype'=>'',
+	'f_field'=>'false'
+);
+$params['nfsGetInfo'] = array(
+	'cmd'=>'cgi_get_share_info',
+	'name'=>''//share name
+);
 //start
 
 login() or die("ERROR LOGIN\n");
@@ -202,7 +215,7 @@ login() or die("ERROR LOGIN\n");
 foreach($opts as $opt=>$optval)
 {
 	switch($opt)
-	{
+	{		
 		case 'p':
 		case 'p2p':
 			switch($optval)
@@ -270,6 +283,15 @@ foreach($opts as $opt=>$optval)
 			downPrintList();
 		break;
 
+		case 'L':
+		case 'download-list':
+			file_exists($optval) or die("ERROR FILE: ".$optval);
+			
+			foreach(file($optval,FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES) as $url)
+				downAddUrl($url);
+			downPrintList();
+		break;		
+
 		case 'n':
 		case 'nfs':
 			switch($optval)
@@ -282,7 +304,15 @@ foreach($opts as $opt=>$optval)
 				break;
 			}
 			$nfsConf = nfsGetConfig();
-			echo "NFS: ".($nfsConf['enable']?'On':'Off');
+			echo "NFS: ".($nfsConf['enable']?'On':'Off')."\n";
+			$nfss = nfsGetList();
+			foreach($nfss as $name=>$n)
+			echo ' '.$name.":\t".$n['path']."\t".
+									$n['host'].
+ 									($n['write']?',rw':',ro').
+ 									($n['recycle']?',recycle':'')."\n";
+							     
+
 		break;
 		
 		case 'u':
@@ -358,7 +388,8 @@ foreach($opts as $opt=>$optval)
 
 function debug($var)
 {
-	if(DEBUG)
+	global $debug;
+	if(DEBUG or $debug)
 		file_put_contents('php://stderr',$var."\n");
 }
 
@@ -604,6 +635,34 @@ function nfsGetConfig()
 	return xml2array( http_post_request($urls['nfs'],$params['nfsGetConfig']) );
 }
 
+function nfsGetInfo($name)//info about a nfs share
+{
+	global $urls;
+	global $params;
+	$params['nfsGetInfo']['name'] = $name;
+	return xml2array( http_post_request($urls['nfs'],$params['nfsGetInfo']) );
+}
+
+function nfsGetList()
+{
+	global $urls;
+	global $params;
+	$shares = xml2array( http_post_request($urls['nfs'],$params['nfsGetList']) );
+	
+	$nfss = array();
+	foreach($shares['row'] as $s)
+	{
+		$name = $s['cell'][0];
+		$i = nfsGetInfo($name);
+		if((bool)$i['nfs']['status'])
+			$nfss[$name] = array('path'=>$i['path'],
+								 'realpath'=>$i['nfs']['real_path'],
+								 'host'=>$i['nfs']['host'],
+ 								 'write'=>($i['nfs']['write']=='Yes'?1:0),
+							     'recycle'=> (bool)$i['recycle']?1:0);
+	}
+	return $nfss;
+}
 ////////////////////////////////////////
 
 
