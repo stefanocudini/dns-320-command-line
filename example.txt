@@ -30,3 +30,8 @@ P2P: On
   Download	66.5%	1.6 KBps / 11  KBps	file5.avi
   Download	7.6%	3.5 KBps / 0.1 KBps	file6.avi
 
+NFS: On
+ P2P:      Volume_2/P2P	*,rw
+ Volume_2: Volume_2		*,rw,recycle
+ Volume_1: Volume_1		*,rw,recycle
+

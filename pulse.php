@@ -305,15 +305,8 @@ foreach($opts as $opt=>$optval)
 				break;
 			}
 			$nfsConf = nfsGetConfig();
-			echo "NFS: ".($nfsConf['enable']?'On':'Off')."\n";
-			$nfss = nfsGetList();
-			foreach($nfss as $name=>$n)
-			echo ' '.$name.":\t".$n['path']."\t".
-									$n['host'].
- 									($n['write']?',rw':',ro').
- 									($n['recycle']?',recycle':'')."\n";
-							     
-
+			echo "NFS: ".($nfsConf['enable']?'On':'Off')."\n";							     
+			nfsPrintList();
 		break;
 		
 		case 'u':
@@ -664,6 +657,17 @@ function nfsGetList()
 	}
 	return $nfss;
 }
+
+function nfsPrintList()
+{
+	$nfss = nfsGetList();
+	$mlen = max(array_map('strlen',array_keys($nfss)));
+	foreach($nfss as $name=>$n)
+	echo ' '.str_pad($name.':',$mlen+2,' ').$n['path']."\t\t".
+							$n['host'].
+							($n['write']?',rw':',ro').
+							($n['recycle']?',recycle':'')."\n";
+}						
 ////////////////////////////////////////
 
 
