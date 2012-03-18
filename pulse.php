@@ -72,17 +72,18 @@ else
 if(count($opts)==0)
 	help();
 
-define('USER','admin');
-define('PASS','admin');
+define('USER', 'admin');
+define('PASS', 'admin');
 
-define('DOWNDIR','Volume_1');//target path inside nas for http download
+define('DOWNDIR','Volume_1/downloads');//target path inside nas for http download
 
 define('CJAR', '_cookies.txt');
-define('UAGENT', isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : "Mozilla/5.0 (Windows; U; Windows NT 5.1; it-it; rv:1.8.1.3) Gecko/20070309 Firefox/3.0.0.6");
-define('SDELAY',2);	//delay after post setconfig request, in seconds
-define('BASEURL', 'http://'.HOST.'/cgi-bin/');
+define('UAGENT', "Pulse Command-line Interface");
+define('SDELAY', 2);	//delay after post setconfig request, in seconds
+define('URLCGI', 'http://'.HOST.'/cgi-bin/');
+define('URLXML', 'http://'.HOST.'/xml/');
 
-$urls['login'] = BASEURL.'login_mgr.cgi';
+$urls['login'] = URLCGI.'login_mgr.cgi';
 $params['loginSet'] = array(
 	'cmd'=>'login',
 	'username'=>USER,
@@ -95,13 +96,13 @@ $params['loginSet'] = array(
 	'ssl_port'=>443
 );
 
-$urls['stat'] = BASEURL.'status_mgr.cgi';
+$urls['stat'] = URLCGI.'status_mgr.cgi';
 $params['statGetStatus'] = array('cmd'=>'cgi_get_status');
 
-$urls['disk'] = BASEURL.'dsk_mgr.cgi';
+$urls['disk'] = URLCGI.'dsk_mgr.cgi';
 $params['diskStatus'] = array('cmd'=>'Status_HDInfo');
 
-$urls['sys'] = BASEURL.'system_mgr.cgi';
+$urls['sys'] = URLCGI.'system_mgr.cgi';
 $params['sysRestart'] = array('cmd'=>'cgi_restart');
 $params['sysShutdown'] = array('cmd'=>'cgi_shutdown');
 $params['sysGetFan'] = array('cmd'=>'cgi_get_power_mgr_xml');
@@ -111,7 +112,9 @@ $params['sysSetFan'] = array(
 );
 $params['sysGetTime'] = array('cmd'=>'cgi_get_time');
 
-$urls['p2p'] = BASEURL.'p2p.cgi';
+$urls['p2p'] = URLCGI.'p2p.cgi';
+$urls['p2pGetSpeed'] = URLXML.'p2p_total_speed.xml';
+
 $params['p2pStatus'] = array(
 	'cmd'=>'p2p_get_list_by_priority',
 	'page'=>1,
@@ -132,7 +135,7 @@ $params['p2pSetConfig'] = array(
 	'f_flow_control_schedule_max_download_rate'=> -1,
 	'f_flow_control_schedule_max_upload_rate'=> -1,
 	'f_bandwidth_auto'=>'false',
-	'f_flow_control_schedule'=>'111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111',
+	'f_flow_control_schedule'=>str_repeat('1',168),
 	'cmd'=>'p2p_set_config',
 	'tmp_p2p_state'=>''
 );
@@ -148,9 +151,7 @@ $params['p2pGetList'] = array(
 );
 $params['p2pClearList'] = array('cmd'=>'p2p_del_all_completed');
 
-$urls['p2pGetSpeed'] = 'http://'.HOST.'/xml/p2p_total_speed.xml';
-
-$urls['down'] = BASEURL.'download_mgr.cgi';
+$urls['down'] = URLCGI.'download_mgr.cgi';
 $params['downAddUrl'] = array(
 	'f_downloadtype'=>0,
 	'f_login_method'=>1,
@@ -186,7 +187,7 @@ $params['downGetList'] = array(
 	'f_field'=>USER
 );
 
-$urls['nfs'] = BASEURL.'account_mgr.cgi';
+$urls['nfs'] = URLCGI.'account_mgr.cgi';
 $params['nfsSetConfig'] = array(
 	'cmd'=>'cgi_nfs_enable',
 	'nfs_status'=>1
