@@ -10,7 +10,7 @@ php5-cli
 php5-curl
 */
 
-define('DEBUG', false);
+define('DEBUG', true);
 
 define('HELP',"
 Usage: pulse.php OPTIONS [host[:port]]
@@ -34,6 +34,7 @@ Usage: pulse.php OPTIONS [host[:port]]
        -h,--help                  print this help
 
 ");
+
 
 $options = array(
 		'p::'=> 'p2p::',
@@ -77,9 +78,10 @@ if(count($opts)==0)
 define('USER', 'admin');
 define('PASS', 'admin');
 
-define('DOWNDIR','Volume_1/downloads');//target path inside nas for http download
+define('DIRDOWN','Volume_1/downloads');//target path inside nas for http download
+define('DIRBASE',dirname(__FILE__).'/');//path of this script
 
-define('CJAR', '_cookies.txt');
+define('CJAR', DIRBASE.'_cookies.txt');
 define('UAGENT', "Pulse Command-line Interface");
 define('SDELAY', 2);	//delay after post setconfig request, in seconds
 define('URLCGI', 'http://'.HOST.'/cgi-bin/');
@@ -159,7 +161,7 @@ $params['downAddUrl'] = array(
 	'f_login_method'=>1,
 	'f_type'=>0,
 	'f_URL'=>'http://host/path/file',
-	'f_dir'=>DOWNDIR,
+	'f_dir'=>DIRDOWN,
 	'f_rename'=>'',
 	'f_lang'=>'UTF-8',
 	'f_default_lang'=>'none',
@@ -497,7 +499,7 @@ function sysGetFan()
 	global $urls;
 	global $params;	
 	$sys = xml2array( http_post_request($urls['sys'],$params['sysGetFan']) );
-	$ff = array('off','low','high');
+	$ff = array('Off','Low','High');
 	$f = $ff[ $sys['fan'] ];
 	return $f;
 }
@@ -623,7 +625,7 @@ function downDelUrl($idurl)
 	global $params;
 	$params['downDelUrl']['f_idx']= $idurl;
 	http_post_request($urls['down'],$params['downDelUrl']);
-	sleep(SDELAY);
+	#sleep(SDELAY);
 }
 
 function downGetList()
@@ -723,7 +725,6 @@ function nfsPrintList()
 							($n['write']?',rw':',ro').
 							($n['recycle']?',recycle':'')."\n";
 }
-
 
 function ftpGetConfig()
 {
