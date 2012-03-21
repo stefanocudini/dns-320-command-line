@@ -46,7 +46,7 @@ $options = array(
 		'n::'=> 'nfs::',
 		'f::'=> 'ftp::',
 		't'  => 'temp',
-		'T'  => 'time',		
+		'T'  => 'time',
 		'F::'=> 'fan::',
 		'u'  => 'ups',
 		'd'  => 'disks',
@@ -82,7 +82,7 @@ define('DIRDOWN','Volume_1/downloads');//target path inside nas for http downloa
 define('DIRBASE',dirname(__FILE__).'/');//path of this script
 
 define('CJAR', DIRBASE.'_cookies.txt');
-define('UAGENT', "Pulse Command-line Interface");
+define('UAGENT', "DNS-320 Command-line Interface");
 define('SDELAY', 2);	//delay after post setconfig request, in seconds
 define('URLCGI', 'http://'.HOST.'/cgi-bin/');
 define('URLXML', 'http://'.HOST.'/xml/');
@@ -778,16 +778,19 @@ function http_post_request($url, $pdata=null, $getHeaders=false)
 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 	curl_setopt($ch, CURLOPT_USERAGENT, UAGENT);
 #	curl_setopt($ch, CURLOPT_HTTPHEADER, array("Connection: close"));
+	curl_setopt($ch, CURLINFO_HEADER_OUT, true);
 	curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
 	$resp = curl_exec($ch);
 	$info = curl_getinfo($ch);
 	curl_close($ch);
 	
 	$body = ''; $head = array();
-	$headRows = explode("\r\n",substr($resp,0, $info['header_size']));
-	foreach($headRows as $row)
+	$resRows = explode("\r\n",substr($resp,0, $info['header_size']));
+	foreach($resRows as $row)
 		$head[ current(explode(': ',$row)) ] = next(explode(': ',$row));
 	//split http head in headers key=>value
+	
+	$reqRows = explode("\r\n", trim($info['request_header']));
 
 	if($info['download_content_length']>0)
 		$body = substr($resp, -$info['download_content_length']);
@@ -796,10 +799,12 @@ function http_post_request($url, $pdata=null, $getHeaders=false)
 	
 	$resp = $getHeaders ? array($head, $body) : $body;
 	
-	debug("POST:     $url\n".
-		  "PARAMS:   $pdata\n".
+	debug(#"URL:    ".$url."\n".
+		  "REQUEST: ".implode("\n".
+		  "         ",$reqRows)."\n".
+		  "POST:    ".$pdata."\n\n".
 		  "RESPONSE: ".implode("\n".
-		  "          ",$headRows));
+		  "          ",$resRows));
 
 	return $resp;
 }
