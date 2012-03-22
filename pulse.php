@@ -10,7 +10,7 @@ stefano.cudini@gmail.com
 requirements: php5-cli,	php5-curl
 ************************************************/
 
-define('DEBUG', false);
+define('DEBUG', true);
 
 define('HELP',"
 
@@ -79,11 +79,13 @@ if(count($opts)==0)
 define('USER', 'admin');
 define('PASS', 'admin');
 
-define('DIRDOWN','Volume_1/downloads');//target path inside nas for http download
-define('DIRBASE',dirname(__FILE__).'/');//path of this script
+define('DIRDOWN', 'Volume_1/downloads');//target path inside nas for http download
+define('DIRBASE', dirname(__FILE__).'/');//path of this script
 
+define('USECURL', in_array('curl',get_loaded_extensions()) );//check php5-curl is present
 define('CJAR', DIRBASE.'_cookies.txt');
-define('UAGENT', "DNS-320 Command-line Interface");
+define('UAGENT', "DNS-320 Command-line Interface (".(USECURL?'Curl':'Socket').')');
+define('TIMEOUT', 10);	//connection timeout
 define('SDELAY', 2);	//delay after post setconfig request, in seconds
 define('URLCGI', 'http://'.HOST.'/cgi-bin/');
 define('URLXML', 'http://'.HOST.'/xml/');
@@ -271,11 +273,13 @@ foreach($opts as $opt=>$optval)
 					p2pSetConfig( array('on'=>false) );
 				break;
 			}
-			if(p2pCheckOn())
-				echo "P2P: On\n";
-			else
-				die("P2P: Off\n");
-			
+			if(!p2pCheckOn())
+			{
+				echo "P2P: Off\n";
+				break;
+			}
+			echo "P2P: On\n";
+		
 			$p2pSpeed = p2pGetSpeed();
 			echo " Speed:  ".$p2pSpeed['down']." KBps / ".$p2pSpeed['up']." KBps\n";
 			$p2pConf = p2pGetConfig();
@@ -285,10 +289,12 @@ foreach($opts as $opt=>$optval)
 		
 		case 'c':
 		case 'p2p-clear':
-			if(p2pCheckOn())
-				echo "P2P: On\n";
-			else
-				die("P2P: Off\n");
+			if(!p2pCheckOn())
+			{
+				echo "P2P: Off\n";
+				break;
+			}
+			echo "P2P: On\n";
 			
 			p2pClearList();
 			p2pPrintList();
@@ -296,10 +302,12 @@ foreach($opts as $opt=>$optval)
 		
 		case 'l':
 		case 'p2p-limit':
-			if(p2pCheckOn())
-				echo "P2P: On\n";
-			else
-				die("P2P: Off\n");
+			if(!p2pCheckOn())
+			{
+				echo "P2P: Off\n";
+				break;
+			}
+			echo "P2P: On\n";
 			
 			$optval = strstr(',',$optval) ? $optval : $optval.',';
 			list($down,$up) = @explode(',',$optval);
@@ -314,7 +322,11 @@ foreach($opts as $opt=>$optval)
 		case 'D':
 		case 'download':
 			if(!empty($optval))
-				downAddUrl($optval) or die("ERROR URL: ".$optval);
+				if(!downAddUrl($optval))
+				{
+					echo "ERROR URL: ".$optval;
+					break;
+				}
 			downPrintList();
 		break;
 
@@ -329,8 +341,11 @@ foreach($opts as $opt=>$optval)
 
 		case 'L':
 		case 'download-list':
-			file_exists($optval) or die("ERROR FILE: ".$optval);
-			
+			if(!file_exists($optval))
+			{
+				echo "ERROR FILE: ".$optval;
+				break;
+			}
 			foreach(file($optval,FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES) as $url)
 				downAddUrl($url);
 			downPrintList();
@@ -609,7 +624,7 @@ function downAddUrl($url)
 	global $urls;
 	global $params;
 	
-	//add check url controll syntax 
+	if(!strstr($url,"http://")) return false;//add check url controll syntax 
 	
 	$params['downAddUrl']['f_URL']= $url;
 	$params['downAddUrl']['f_date']= date("m/d/Y");
@@ -765,57 +780,6 @@ function login()		//LOGIN
 	return (isset($head['Set-Cookie']) and strstr($head['Set-Cookie'],'username='.USER) );
 }
 
-function http_post_request($url, $pdata=null, $getHeaders=false)
-{
-	$pdata = is_array($pdata) ? http_build_query($pdata) : $pdata;
-	
-	$encPass = textToBase64(encRC4(USER,PASS));//view /web/pages/function/rc4.js
-	$cookie = 'username='.USER.'; rembMe=checked; uname='.USER.'; password='.$encPass;#.'; path=/';
-			
-	$ch = curl_init();
-	curl_setopt($ch, CURLOPT_URL, $url );
-	curl_setopt($ch, CURLOPT_POSTFIELDS, $pdata);
-	curl_setopt($ch, CURLOPT_POST, 1);
-	curl_setopt($ch, CURLOPT_HEADER, 1);	
-	curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
-	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-	curl_setopt($ch, CURLOPT_COOKIE, $cookie);
-	curl_setopt($ch, CURLOPT_COOKIEJAR, CJAR);
-	curl_setopt($ch, CURLOPT_COOKIEFILE, CJAR);
-	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-	curl_setopt($ch, CURLOPT_USERAGENT, UAGENT);
-#	curl_setopt($ch, CURLOPT_HTTPHEADER, array("Connection: close"));
-	curl_setopt($ch, CURLINFO_HEADER_OUT, true);
-	curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-	$resp = curl_exec($ch);
-	$info = curl_getinfo($ch);
-	curl_close($ch);
-	
-	$body = ''; $head = array();
-	$resRows = explode("\r\n",substr($resp,0, $info['header_size']));
-	foreach($resRows as $row)
-		$head[ current(explode(': ',$row)) ] = next(explode(': ',$row));
-	//split http head in headers key=>value
-	
-	$reqRows = explode("\r\n", trim($info['request_header']));
-
-	if($info['download_content_length']>0)
-		$body = substr($resp, -$info['download_content_length']);
-	else
-		$body = next(explode("\r\n\r\n",$resp));
-	
-	$resp = $getHeaders ? array($head, $body) : $body;
-	
-	debug(#"URL:    ".$url."\n".
-		  "REQUEST: ".implode("\n".
-		  "         ",$reqRows)."\n".
-		  "POST:    ".$pdata."\n\n".
-		  "RESPONSE: ".implode("\n".
-		  "          ",$resRows));
-
-	return $resp;
-}
-
 function confirm($text)
 {
 	echo "$text [y/n] ";
@@ -950,6 +914,126 @@ function textToBase64($t)
 		}
 	}
 	return $r;
+}
+
+
+///////////
+
+function http_post_request($url, $pdata=null, $getHeaders=false)
+{
+	if(USECURL)
+		return http_post_requestCurl($url, $pdata, $getHeaders);
+	else
+		return http_post_requestSock($url, $pdata, $getHeaders);
+}
+
+
+function http_post_requestSock($url, $pdata=null, $getHeaders=false)//without Follow Location implementation
+{
+	$urlinfo = parse_url($url);
+	$port = isset($urlinfo["port"]) ? $urlinfo["port"] : 80;
+	$pdata = is_array($pdata) ? http_build_query($pdata) : $pdata; 	
+	$encPass = textToBase64(encRC4(USER,PASS));//view /web/pages/function/rc4.js
+	$cookie = 'username='.USER.'; rembMe=checked; uname='.USER.'; password='.$encPass;#.'; path=/';
+
+	$reqH = "POST ".$urlinfo["path"]." HTTP/1.1\r\n".
+			"Host: ".$urlinfo["host"]."\r\n".
+			"User-Agent: ".UAGENT."\r\n".
+			"Accept: */*"."\r\n".
+			"Cookie: ".$cookie."\r\n".
+			"Content-length: ".strlen($pdata)."\r\n".
+			#"Connection: close\r\n".
+			"Content-type: application/x-www-form-urlencoded\r\n";
+
+	$req = $reqH."\r\n".$pdata;
+	$fp = fsockopen($urlinfo["host"], $port);
+	stream_set_timeout($fp, 0, TIMEOUT * 1000);
+	fputs($fp, $req);
+	$resp='';
+	while(!feof($fp))
+		$resp .= fgets($fp, 1024);
+	fclose($fp);
+	//////////////////
+	
+	$info['header_size'] = strpos($resp, "\r\n\r\n") + 4;
+	$info['request_header'] = $reqH;
+	$info['download_content_length'] = strlen(next(explode("\r\n\r\n",$resp)));
+	
+	$body = ''; $head = array();
+	$resRows = explode("\r\n",substr($resp,0, $info['header_size']));
+	foreach($resRows as $row)
+		$head[ current(explode(': ',$row)) ] = next(explode(': ',$row));
+	//split http head in headers key=>value
+	
+	$reqRows = explode("\r\n", trim($info['request_header']));
+
+	if($info['download_content_length']>0)
+		$body = substr($resp, -$info['download_content_length']);
+	else
+		$body = next(explode("\r\n\r\n",$resp));
+	
+	$resp = $getHeaders ? array($head, $body) : $body;
+	
+	debug(#"URL:    ".$url."\n".
+		  "REQUEST: ".implode("\n".
+		  "         ",$reqRows)."\n".
+		  "POST:    ".$pdata."\n\n".
+		  "RESPONSE: ".implode("\n".
+		  "          ",$resRows));
+	
+
+	return $resp; 
+} 
+
+function http_post_requestCurl($url, $pdata=null, $getHeaders=false)
+{
+	$pdata = is_array($pdata) ? http_build_query($pdata) : $pdata;
+	
+	$encPass = textToBase64(encRC4(USER,PASS));//view /web/pages/function/rc4.js
+	$cookie = 'username='.USER.'; rembMe=checked; uname='.USER.'; password='.$encPass;#.'; path=/';
+
+	$ch = curl_init();
+	curl_setopt($ch, CURLOPT_URL, $url );
+	curl_setopt($ch, CURLOPT_POSTFIELDS, $pdata);
+	curl_setopt($ch, CURLOPT_POST, 1);
+	curl_setopt($ch, CURLOPT_HEADER, 1);	
+	curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+	curl_setopt($ch, CURLOPT_COOKIE, $cookie);
+	curl_setopt($ch, CURLOPT_COOKIEJAR, CJAR);
+	curl_setopt($ch, CURLOPT_COOKIEFILE, CJAR);
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+	curl_setopt($ch, CURLOPT_USERAGENT, UAGENT);
+#	curl_setopt($ch, CURLOPT_HTTPHEADER, array("Connection: close"));
+	curl_setopt($ch, CURLINFO_HEADER_OUT, true);
+	curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, TIMEOUT);
+	$resp = curl_exec($ch);
+	$info = curl_getinfo($ch);
+	curl_close($ch);
+	
+	$body = ''; $head = array();
+	$resRows = explode("\r\n",substr($resp,0, $info['header_size']));
+	foreach($resRows as $row)
+		$head[ current(explode(': ',$row)) ] = next(explode(': ',$row));
+	//split http head in headers key=>value
+	
+	$reqRows = explode("\r\n", trim($info['request_header']));
+
+	if($info['download_content_length']>0)
+		$body = substr($resp, -$info['download_content_length']);
+	else
+		$body = next(explode("\r\n\r\n",$resp));
+	
+	$resp = $getHeaders ? array($head, $body) : $body;
+	
+	debug(#"URL:    ".$url."\n".
+		  "REQUEST: ".implode("\n".
+		  "         ",$reqRows)."\n".
+		  "POST:    ".$pdata."\n\n".
+		  "RESPONSE: ".implode("\n".
+		  "          ",$resRows));
+
+	return $resp;
 }
 
 ?>
