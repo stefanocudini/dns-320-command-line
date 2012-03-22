@@ -14,9 +14,11 @@ define('DEBUG', false);
 
 define('HELP',"
 
-Usage: pulse.php OPTIONS [host[:port]]
+Usage: pulse.php options [host[:port]]
+
        host                       hostname or ip target, default: pulse
        port                       port number for host, default: 80
+OPTIONS:
        -p,--p2p[=on|off]          get or set p2p client state
        -c,--p2p-clear             clear p2p complete list
        -l,--p2p-limit[=down[,up]] get or set p2p speed limit, unlimit: -1
@@ -121,7 +123,7 @@ $urls['p2pGetSpeed'] = URLXML.'p2p_total_speed.xml';
 $params['p2pStatus'] = array(
 	'cmd'=>'p2p_get_list_by_priority',
 	'page'=>1,
-	'rp'=>10,
+	'rp'=>40,
 	'sortname'=>'undefined',
 	'sortorder'=>'undefined',
 	'query'=>'',
@@ -145,7 +147,7 @@ $params['p2pSetConfig'] = array(
 $params['p2pGetList'] = array(
 	'cmd'=>'p2p_get_list_by_priority',
 	'page'=>1,
-	'rp'=>20,
+	'rp'=>40,
 	'sortname'=>'undefined',
 	'sortorder'=>'undefined',
 	'query'=>'',
@@ -172,7 +174,7 @@ $params['downAddUrl'] = array(
 	'f_idx'=>'',
 	'f_login_user'=>USER,
 	'cmd'=>'Downloads_Schedule_Add',
-	'rp'=>10
+	'rp'=>40
 );
 $params['downDelUrl'] = array(
 	'cmd'=>'Downloads_Schedule_Del',
@@ -182,7 +184,7 @@ $params['downDelUrl'] = array(
 $params['downGetList'] = array(
 	'cmd'=>'Downloads_Schedule_List',
 	'page'=>1,
-	'rp'=>10,
+	'rp'=>40,
 	'sortname'=>'undefined',
 	'sortorder'=>'undefined',
 	'query'=>'',
@@ -201,7 +203,7 @@ $params['nfsSetConfig'] = array(
 $params['nfsGetList'] = array(
 	'cmd'=>'cgi_get_session',
 	'page'=>1,
-	'rp'=>10,
+	'rp'=>40,
 	'sortname'=>'undefined',
 	'sortorder'=>'undefined',
 	'query'=>'',
@@ -225,7 +227,7 @@ $params['ftpSetConfig'] = array(
 $params['isoGetList'] = array(
 	'cmd'=>'cgi_get_iso_share',
 	'page'=>1,
-	'rp'=>10,
+	'rp'=>40,
 	'sortname'=>'undefined',
 	'sortorder'=>'undefined',
 	'query'=>'',
