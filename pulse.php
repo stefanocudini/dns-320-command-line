@@ -787,8 +787,8 @@ function confirm($text)
 }
 
 function xml2array($xml)
-{
-	return json_decode(json_encode(simplexml_load_string($xml)),true);
+{	
+	return (empty($xml) ? array() : json_decode(json_encode(simplexml_load_string($xml)),true) );
 }
 
 function bytesConvert($bytes)
@@ -927,7 +927,7 @@ function http_post_request($url, $pdata=null, $getHeaders=false)
 		return http_post_requestSock($url, $pdata, $getHeaders);
 }
 
-
+	
 function http_post_requestSock($url, $pdata=null, $getHeaders=false)//without Follow Location implementation
 {
 	$urlinfo = parse_url($url);
@@ -944,8 +944,8 @@ function http_post_requestSock($url, $pdata=null, $getHeaders=false)//without Fo
 			"Content-length: ".strlen($pdata)."\r\n".
 			#"Connection: close\r\n".
 			"Content-type: application/x-www-form-urlencoded\r\n";
-
 	$req = $reqH."\r\n".$pdata;
+	
 	$fp = fsockopen($urlinfo["host"], $port);
 	stream_set_timeout($fp, 0, TIMEOUT * 1000);
 	fputs($fp, $req);
