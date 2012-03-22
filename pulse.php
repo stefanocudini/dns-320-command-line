@@ -13,6 +13,7 @@ php5-curl
 define('DEBUG', true);
 
 define('HELP',"
+
 Usage: pulse.php OPTIONS [host[:port]]
        host                       hostname or ip target, default: pulse
        port                       port number for host, default: 80
@@ -416,14 +417,14 @@ foreach($opts as $opt=>$optval)
 		case 's':
 		case 'shutdown':
 			if(!confirm("Are you sure you want to poweroff NAS now?")) break;
-			echo "Shutdown system...";
+			echo "Shutdown system...\n";
 			sysShutdown();
 		break;
 		
 		case 'r':
 		case 'restart':
 			if(!confirm("Are you sure you want to restart NAS now?")) break;
-			echo "Restart system...";
+			echo "Restart system...\n";
 			sysRestart();
 		break;
 		
@@ -749,7 +750,7 @@ function ftpSetConfig($sets=array())
 ////////////////////////////////////////
 
 
-function login()
+function login()		//LOGIN
 {
 	global $urls;
 	global $params;
@@ -765,7 +766,10 @@ function login()
 function http_post_request($url, $pdata=null, $getHeaders=false)
 {
 	$pdata = is_array($pdata) ? http_build_query($pdata) : $pdata;
-		
+	
+	$encPass = textToBase64(encRC4(USER,PASS));//view /web/pages/function/rc4.js
+	$cookie = 'username='.USER.'; rembMe=checked; uname='.USER.'; password='.$encPass;#.'; path=/';
+			
 	$ch = curl_init();
 	curl_setopt($ch, CURLOPT_URL, $url );
 	curl_setopt($ch, CURLOPT_POSTFIELDS, $pdata);
@@ -773,6 +777,7 @@ function http_post_request($url, $pdata=null, $getHeaders=false)
 	curl_setopt($ch, CURLOPT_HEADER, 1);	
 	curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
 	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+	curl_setopt($ch, CURLOPT_COOKIE, $cookie);
 	curl_setopt($ch, CURLOPT_COOKIEJAR, CJAR);
 	curl_setopt($ch, CURLOPT_COOKIEFILE, CJAR);
 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
@@ -891,6 +896,58 @@ function xml_indent($xml)
 	endwhile; 
 
 	return $result;
+}
+
+function encRC4($key, $text)
+{
+	$kl=strlen($key);
+	$s=array();
+
+	for($i=0; $i<256; $i++)
+		$s[$i]=$i;
+
+	$y=0;
+	$x=$kl;
+	while($x--) {
+		$y=(charCodeAt($key,$x) + $s[$x] + $y) % 256;
+		$t=$s[$x]; $s[$x]=$s[$y]; $s[$y]=$t;
+	}
+	$x=0;  $y=0;
+	$z="";
+	for($x=0; $x<strlen($text); $x++) {
+		$x2=$x & 255;
+		$y=( $s[$x2] + $y) & 255;
+		$t=$s[$x2]; $s[$x2]=$s[$y]; $s[$y]=$t;
+		$z .= chr( charCodeAt($text,$x) ^ $s[($s[$x2] + $s[$y]) % 256] );
+	}
+	return $z;
+}//*/
+
+
+function charCodeAt($str, $i)
+{
+  return ord(substr($str, $i, 1));
+}
+
+function textToBase64($t)
+{
+	$tab = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+	$r=''; $m=0; $a=0; $tl=strlen($t)-1;
+	
+	for($n=0; $n<=$tl; $n++)
+	{
+		$c = charCodeAt($t,$n);
+
+		$r .= substr($tab, (($c << $m | $a) & 63) ,1);
+		$a = $c >> (6-$m);
+		$m+=2;
+		if($m==6 || $n==$tl) {
+			$r .= substr($tab, $a ,1);
+			$m=0;
+			$a=0;
+		}
+	}
+	return $r;
 }
 
 ?>
