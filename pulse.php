@@ -1,14 +1,14 @@
 #!/usr/bin/env php
 <?
 /*
-SIMPLE COMMAND-LINE INTERFACE for D-LINK SHARECENTER DNS-320
+COMMAND-LINE INTERFACE for D-LINK Sharecenter DNS-320 Pulse
+https://bitbucket.org/zakis_/dns-320-command-line
+
 Copyleft Stefano Cudini 2012
 stefano.cudini@gmail.com
 
-requirements:
-php5-cli
-php5-curl
-*/
+requirements: php5-cli,	php5-curl
+************************************************/
 
 define('DEBUG', false);
 
@@ -35,8 +35,6 @@ Usage: pulse.php OPTIONS [host[:port]]
        -h,--help                  print this help
 
 ");
-
-
 $options = array(
 		'p::'=> 'p2p::',
 		'c'  => 'p2p-clear',
