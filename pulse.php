@@ -10,7 +10,7 @@ php5-cli
 php5-curl
 */
 
-define('DEBUG', true);
+define('DEBUG', false);
 
 define('HELP',"
 
@@ -376,7 +376,7 @@ foreach($opts as $opt=>$optval)
 
 		case 't':
 		case 'temp':
-			echo "TEMPERATURE:\t".sysGetTemp().'°C';
+			echo "TEMP:\t".sysGetTemp().'°C';
 		break;
 
 		case 'T':
@@ -492,7 +492,8 @@ function sysGetTime()
 	global $urls;
 	global $params;	
 	$t = xml2array( http_post_request($urls['sys'],$params['sysGetTime']) );
-	return $t['day'].'/'.$t['mon'].'/'.$t['year'].', '.$t['hour'].':'.$t['min'].':'.$t['sec'];
+	return sprintf("%02d/%02d/%04d", $t['day'], $t['mon'], $t['year']).', '.
+		   sprintf("%02d:%02d:%02d", $t['hour'], $t['min'], $t['sec']);
 }
 
 function sysGetFan()
