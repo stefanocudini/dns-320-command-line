@@ -720,12 +720,13 @@ function nfsGetList()
 function nfsPrintList()
 {
 	$nfss = nfsGetList();
-	$mlen = max(array_map('strlen',array_keys($nfss)));
+	#$mlen = max(array_map('strlen',array_keys($nfss)));
 	foreach($nfss as $name=>$n)
-	echo ' '.str_pad($name.':',$mlen+2,' ').$n['path']."\t\t".
-							$n['host'].
-							($n['write']?',rw':',ro').
-							($n['recycle']?',recycle':'')."\n";
+		echo ' '.#str_pad($name.':',$mlen+2,' ')
+				$n['path']."\t\t".
+				$n['host'].
+				($n['write']?',rw':',ro').
+				($n['recycle']?',recycle':'')."\n";
 }
 
 function ftpGetConfig()
