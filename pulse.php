@@ -10,7 +10,7 @@ stefano.cudini@gmail.com
 requirements: php5-cli,	php5-curl
 ************************************************/
 
-define('DEBUG', true);
+define('DEBUG', false);
 
 define('HELP',"
 

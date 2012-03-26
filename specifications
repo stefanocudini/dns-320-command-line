@@ -1,0 +1,7 @@
+CPU      800 MHz Marvell 88F6281 (Kirkwood)
+RAM      128 MB
+USB      1 USB2.0 Port (front)
+LAN      Marvell 88E1118R-NNC1
+Cooling  ADDA AD045HB-G73
+Kernel   2.6.22.18
+Samba    3.2.8
