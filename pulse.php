@@ -31,6 +31,7 @@ OPTIONS:
        -T,--time                  get date and time of nas
        -F,--fan[=off|low|high]    get or set fan mode
        -u,--ups                   get ups state
+       -U,--usb                   get usb disk info
        -d,--disks                 get disks usage
        -s,--shutdown              power off the system
        -r,--restart               restart the system
@@ -50,6 +51,7 @@ $options = array(
 		'T'  => 'time',
 		'F::'=> 'fan::',
 		'u'  => 'ups',
+		'U'  => 'usb',		
 		'd'  => 'disks',
 		's'  => 'shutdown',
 		'r'  => 'restart',
@@ -105,6 +107,7 @@ $params['loginSet'] = array(
 
 $urls['stat'] = URLCGI.'status_mgr.cgi';
 $params['statGetStatus'] = array('cmd'=>'cgi_get_status');
+//about: ups, temperature, usb
 
 $urls['disk'] = URLCGI.'dsk_mgr.cgi';
 $params['diskStatus'] = array('cmd'=>'Status_HDInfo');
@@ -389,6 +392,13 @@ foreach($opts as $opt=>$optval)
 			     " Battery: ".$u['bat'] : 'Off');
 		break;
 
+		case 'U':
+		case 'usb':
+			$u = usbGetInfo();
+			echo "USB:\t".$u['name']."\n".
+			     " Disk: ".$u['disk'];
+		break;
+		
 		case 't':
 		case 'temp':
 			echo "TEMP:\t".sysGetTemp().'°C';
@@ -489,9 +499,43 @@ function upsGetInfo()
 	global $urls;
 	global $params;
 	$ups = xml2array( http_post_request($urls['stat'],$params['statGetStatus']) );
-	$upsret = ($ups['usb_type']=='UPS') ? array('bat'=>$ups['battery'],'stat'=>$ups['ups_status']) : false;
-	return $upsret;
+	if($usb['usb_type']=='UPS')
+	{
+		$usbret = array(
+			'bat'  => $usb['battery'],
+			'stat' => $usb['ups_status']);
+		return $upsret;
+	}
+	else
+		return false;
 }
+
+function usbGetInfo()
+{
+	global $urls;
+	global $params;
+	$usb = xml2array( http_post_request($urls['stat'],$params['statGetStatus']) );
+	/*
+<usb_type>FLASH</usb_type>
+<flash_info>
+	<Manufacturer>Western Digital</Manufacturer>
+	<Product>My Passport 0730</Product>
+	<Partition>USBDisk1_1,488.35 GB</Partition>
+</flash_info>
+<uptime>0 day  0 hour  1 minute </uptime>
+	*/
+	if($usb['usb_type']=='FLASH')
+	{
+		$usbret = array(
+			'name' => $usb['flash_info']['Manufacturer'].', '.$usb['flash_info']['Product'],
+			'disk' => $usb['flash_info']['Partition']
+			);
+		return $usbret;
+	}
+	else
+		return false;
+}
+
 
 function sysGetTemp()
 {
@@ -927,7 +971,6 @@ function http_post_request($url, $pdata=null, $getHeaders=false)
 		return http_post_requestSock($url, $pdata, $getHeaders);
 }
 
-	
 function http_post_requestSock($url, $pdata=null, $getHeaders=false)//without Follow Location implementation
 {
 	$urlinfo = parse_url($url);
