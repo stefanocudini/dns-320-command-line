@@ -31,7 +31,8 @@ OPTIONS:
        -T,--time                  get date and time of nas
        -F,--fan[=off|low|high]    get or set fan mode
        -u,--ups                   get ups state
-       -U,--usb                   get usb disk info
+       -U,--usb                   get usb disk/flash info
+       -M,--usb-umount            umount usb disk/flash
        -d,--disks                 get disks usage
        -s,--shutdown              power off the system
        -r,--restart               restart the system
@@ -51,7 +52,8 @@ $options = array(
 		'T'  => 'time',
 		'F::'=> 'fan::',
 		'u'  => 'ups',
-		'U'  => 'usb',		
+		'U'  => 'usb',
+		'M'  => 'usb-umount',		
 		'd'  => 'disks',
 		's'  => 'shutdown',
 		'r'  => 'restart',
@@ -108,6 +110,8 @@ $params['loginSet'] = array(
 $urls['stat'] = URLCGI.'status_mgr.cgi';
 $params['statGetStatus'] = array('cmd'=>'cgi_get_status');
 //about: ups, temperature, usb
+$urls['usbUmount'] = URLCGI.'system_mgr.cgi?cmd=cgi_umount_flash&_='.uniqid();
+//is a GET request
 
 $urls['disk'] = URLCGI.'dsk_mgr.cgi';
 $params['diskStatus'] = array('cmd'=>'Status_HDInfo');
@@ -395,8 +399,15 @@ foreach($opts as $opt=>$optval)
 		case 'U':
 		case 'usb':
 			$u = usbGetInfo();
-			echo "USB:\t".$u['name']."\n".
-			     " Disk: ".$u['disk'];
+			echo "USB-DISK:\t".($u ? "Mounted\n".
+			     ' '.$u['name'].': '.$u['disk'] : 'Off');
+		break;
+
+		case 'M':
+		case 'usb-umount':
+			usbUmount();
+			$u = usbGetInfo();
+			echo "USB-DISK:\t".($u ? "Mounted\n" : 'Off');
 		break;
 		
 		case 't':
@@ -515,19 +526,11 @@ function usbGetInfo()
 	global $urls;
 	global $params;
 	$usb = xml2array( http_post_request($urls['stat'],$params['statGetStatus']) );
-	/*
-<usb_type>FLASH</usb_type>
-<flash_info>
-	<Manufacturer>Western Digital</Manufacturer>
-	<Product>My Passport 0730</Product>
-	<Partition>USBDisk1_1,488.35 GB</Partition>
-</flash_info>
-<uptime>0 day  0 hour  1 minute </uptime>
-	*/
+	
 	if($usb['usb_type']=='FLASH')
 	{
 		$usbret = array(
-			'name' => $usb['flash_info']['Manufacturer'].', '.$usb['flash_info']['Product'],
+			'name' => $usb['flash_info']['Manufacturer'].' '.$usb['flash_info']['Product'],
 			'disk' => $usb['flash_info']['Partition']
 			);
 		return $usbret;
@@ -536,6 +539,14 @@ function usbGetInfo()
 		return false;
 }
 
+function usbUmount()
+{
+	global $urls;
+	global $params;
+	if(!is_array(usbGetInfo())) return false;
+	http_post_request($urls['usbUmount']);//GET request
+	sleep(SDELAY);
+}
 
 function sysGetTemp()
 {
@@ -973,34 +984,51 @@ function http_post_request($url, $pdata=null, $getHeaders=false)
 
 function http_post_requestSock($url, $pdata=null, $getHeaders=false)//without Follow Location implementation
 {
+#	$url .= '?dd';
+	$isget = parse_url($url,PHP_URL_QUERY) ? true : false;//if contain get parameters, then is get request
+
 	$urlinfo = parse_url($url);
 	$port = isset($urlinfo["port"]) ? $urlinfo["port"] : 80;
-	$pdata = is_array($pdata) ? http_build_query($pdata) : $pdata; 	
+
 	$encPass = textToBase64(encRC4(USER,PASS));//view /web/pages/function/rc4.js
 	$cookie = 'username='.USER.'; rembMe=checked; uname='.USER.'; password='.$encPass;#.'; path=/';
 
-	$reqH = "POST ".$urlinfo["path"]." HTTP/1.1\r\n".
-			"Host: ".$urlinfo["host"]."\r\n".
-			"User-Agent: ".UAGENT."\r\n".
-			"Accept: */*"."\r\n".
-			"Cookie: ".$cookie."\r\n".
-			"Content-length: ".strlen($pdata)."\r\n".
-			#"Connection: close\r\n".
-			"Content-type: application/x-www-form-urlencoded\r\n";
-	$req = $reqH."\r\n".$pdata;
+	$baseReq =  "Host: ".$urlinfo["host"]."\r\n".
+				"User-Agent: ".UAGENT."\r\n".
+				"Accept: */*"."\r\n".
+				"Cookie: ".$cookie."\r\n";
+	$protoReq = " HTTP/1.0\r\n";	//dont use HTTP/1.1 because server return Transfer-Encoding: chunked and body will be splitted!
+	
+	if(!$isget)
+	{
+		$pdata = is_array($pdata) ? http_build_query($pdata) : $pdata;	
+		$reqH = "POST ".$urlinfo["path"] . $protoReq.
+				"Content-length: ".strlen($pdata)."\r\n".
+				"Content-type: application/x-www-form-urlencoded\r\n";
+	}
+	else//switch to GET request
+	{
+		$pdata = '';
+		$reqH = "GET ".$urlinfo["path"].( isset($urlinfo["query"]) ? '?'.$urlinfo["query"] : '') . $protoReq;
+	}
+
+	$req = $reqH.
+		   $baseReq.
+		   "\r\n".
+		   $pdata;
 	
 	$fp = fsockopen($urlinfo["host"], $port);
 	stream_set_timeout($fp, 0, TIMEOUT * 1000);
 	fputs($fp, $req);
 	$resp='';
 	while(!feof($fp))
-		$resp .= fgets($fp, 1024);
+		$resp .= fread($fp, 8192);
 	fclose($fp);
 	//////////////////
-	
+
 	$info['header_size'] = strpos($resp, "\r\n\r\n") + 4;
 	$info['request_header'] = $reqH;
-	$info['download_content_length'] = strlen(next(explode("\r\n\r\n",$resp)));
+	$info['download_content_length'] = strlen($resp) - $info['header_size'];
 	
 	$body = ''; $head = array();
 	$resRows = explode("\r\n",substr($resp,0, $info['header_size']));
@@ -1012,9 +1040,7 @@ function http_post_requestSock($url, $pdata=null, $getHeaders=false)//without Fo
 
 	if($info['download_content_length']>0)
 		$body = substr($resp, -$info['download_content_length']);
-	else
-		$body = next(explode("\r\n\r\n",$resp));
-	
+
 	$resp = $getHeaders ? array($head, $body) : $body;
 	
 	debug(#"URL:    ".$url."\n".
@@ -1023,13 +1049,14 @@ function http_post_requestSock($url, $pdata=null, $getHeaders=false)//without Fo
 		  "POST:    ".$pdata."\n\n".
 		  "RESPONSE: ".implode("\n".
 		  "          ",$resRows));
-	
-
 	return $resp; 
 } 
 
 function http_post_requestCurl($url, $pdata=null, $getHeaders=false)
 {
+//	$url .= '?dd';
+	$isget = parse_url($url,PHP_URL_QUERY) ? true : false;//if contain get parameters, then is get request
+	
 	$pdata = is_array($pdata) ? http_build_query($pdata) : $pdata;
 	
 	$encPass = textToBase64(encRC4(USER,PASS));//view /web/pages/function/rc4.js
@@ -1037,8 +1064,11 @@ function http_post_requestCurl($url, $pdata=null, $getHeaders=false)
 
 	$ch = curl_init();
 	curl_setopt($ch, CURLOPT_URL, $url );
+	if(!$isget)//switch to GET request
+	{
 	curl_setopt($ch, CURLOPT_POSTFIELDS, $pdata);
 	curl_setopt($ch, CURLOPT_POST, 1);
+	}
 	curl_setopt($ch, CURLOPT_HEADER, 1);	
 	curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
 	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
