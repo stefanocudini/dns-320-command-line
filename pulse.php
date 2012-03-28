@@ -631,8 +631,7 @@ function p2pGetList()
 	$jj = preg_replace("/([,\{])([a-zA-Z0-9_]+?):/" , "$1\"$2\":", $jj);
 	//correcting not standard JSON!! fuck!!
 	
-	$pp = json_decode($jj,true);
-	
+	$pp = json_decode($jj,true);	
 	$P = array();
 	foreach($pp['rows'] as $pc)
 	{
@@ -640,15 +639,19 @@ function p2pGetList()
 		if(strstr($p[4],'status_download'))   $s = 'download';
 		elseif(strstr($p[4],'status_queue'))  $s = 'stopped';
 		elseif(strstr($p[4],'status_upload')) $s = 'complete';
-	
+
 		preg_match("/.*>(.*)<.*/", $p[0], $f);//file
 		preg_match("/.*>(.*)<.*/", $p[3], $g);//progress
-		$P[]= array('progress'=> $g[1].'%',
+		$P[]= array('progress'=> intval(trim($g[1])),
 					'status'=>   $s,
 					'speed'=>    $p[5],
 					'file'=>     substrStrip($f[1], 60),
 					'id'=>       $p[7]);
 	}
+	foreach($P as $k=>$r)
+		$progress[$k]= $r['progress'];
+	array_multisort($progress, SORT_DESC, $P);
+
 	return $P;
 }
 
@@ -657,7 +660,7 @@ function p2pPrintList()
 	$pp = p2pGetList();	
 	echo " Torrents: ".count($pp)."\n";
 	foreach($pp as $p)
-		echo '  '.ucwords($p['status'])."\t".$p['progress']."\t".$p['speed']."\t".basename($p['file'])."\n";
+		echo '  '.ucwords($p['status'])."\t".$p['progress']."%\t".$p['speed']."\t".basename($p['file'])."\n";
 }
 
 function p2pClearList()
