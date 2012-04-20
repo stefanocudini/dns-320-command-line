@@ -22,6 +22,8 @@ OPTIONS:
        -p,--p2p[=on|off]          get or set p2p client state
        -c,--p2p-clear             clear p2p complete list
        -l,--p2p-limit[=down[,up]] get or set p2p speed limit, unlimit: -1
+       -S,--p2p-start[=id,id,...] start all or specific torrent download
+       -O,--p2p-stop[=id,id,...]  stop all or specific torrent download
        -D,--download[=url]        list or add url in http downloader
        -C,--download-clear        clear complete http downloads list
        -L,--download-list[=file]  add urls from file list
@@ -43,6 +45,8 @@ $options = array(
 		'p::'=> 'p2p::',
 		'c'  => 'p2p-clear',
 		'l::'=> 'p2p-limit::',
+		'S::'=> 'p2p-start::',
+		'O::'=> 'p2p-stop::',
 		'D::'=> 'download::',
 		'C'  => 'download-clear',
 		'L:' => 'download-list:',
@@ -164,6 +168,14 @@ $params['p2pGetList'] = array(
 	'f_field'=>0
 );
 $params['p2pClearList'] = array('cmd'=>'p2p_del_all_completed');
+$params['p2pStopFile'] = array(
+	'cmd'=>'p2p_pause_torrent',
+	'f_torrent_index'=>0
+);
+$params['p2pStartFile'] = array(
+	'cmd'=>'p2p_start_torrent',
+	'f_torrent_index'=>0
+);
 
 $urls['down'] = URLCGI.'download_mgr.cgi';
 $params['downAddUrl'] = array(
@@ -316,8 +328,7 @@ foreach($opts as $opt=>$optval)
 			}
 			echo "P2P: On\n";
 			
-			$optval = strstr(',',$optval) ? $optval : $optval.',';
-			list($down,$up) = @explode(',',$optval);
+			list($down,$up) = @explode(',', strstr(',',$optval) ? $optval : $optval.',' );
 			
 			if(!empty($down) or !empty($up))
 				p2pSetConfig( array('down'=>intval($down?$down:-1), 'up'=>intval($up?$up:-1)) );
@@ -326,6 +337,35 @@ foreach($opts as $opt=>$optval)
 			echo " Limits: ".$p2pConf['bandwidth_downlaod_rate']." KBps / ".$p2pConf['bandwidth_upload_rate']." KBps\n";
 		break;
 
+		case 'S':
+		case 'p2p-start':
+			if(!p2pCheckOn())
+			{
+				echo "P2P: Off\n";
+				break;
+			}
+			$optvals = @explode(',', strstr(',',$optval) ? $optval : $optval.',' );
+			$pp = p2pGetList();
+			foreach($pp as $p)
+				if(empty($optval) or in_array($p['id'],$optvals))
+					p2pStartFile($p['id']);			
+			p2pPrintList();
+		break;		
+
+		case 'O':
+		case 'p2p-stop':
+			if(!p2pCheckOn())
+			{
+				echo "P2P: Off\n";
+				break;
+			}
+			$optvals = @explode(',', strstr(',',$optval) ? $optval : $optval.',' );
+			$pp = p2pGetList();
+			foreach($pp as $p)
+				if(empty($optval) or in_array($p['id'],$optvals))
+					p2pStopFile($p['id']);
+			p2pPrintList();
+		break;	
 		case 'D':
 		case 'download':
 			if(!empty($optval))
@@ -620,6 +660,22 @@ function p2pSetConfig($sets=array())
 	sleep(SDELAY);
 }
 
+function p2pStartFile($idtorrent)
+{
+	global $urls;
+	global $params;
+	$params['p2pStartFile']['f_torrent_index']= $idtorrent;	
+	http_post_request($urls['p2p'],$params['p2pStartFile']);
+}
+
+function p2pStopFile($idtorrent)
+{
+	global $urls;
+	global $params;
+	$params['p2pStopFile']['f_torrent_index']= $idtorrent;	
+	http_post_request($urls['p2p'],$params['p2pStopFile']);
+}
+
 function p2pGetList()
 {
 	global $urls;
@@ -637,15 +693,15 @@ function p2pGetList()
 	{
 		$p = $pc['cell'];
 		if(strstr($p[4],'status_download'))   $s = 'download';
-		elseif(strstr($p[4],'status_queue'))  $s = 'stopped';
+		elseif(strstr($p[4],'status_queue'))  $s = 'stopped ';
 		elseif(strstr($p[4],'status_upload')) $s = 'complete';
-
+		
 		preg_match("/.*>(.*)<.*/", $p[0], $f);//file
 		preg_match("/.*>(.*)<.*/", $p[3], $g);//progress
 		$P[]= array('progress'=> intval(trim($g[1])),
 					'status'=>   $s,
 					'speed'=>    $p[5],
-					'file'=>     substrStrip($f[1], 60),
+					'file'=>     substrStrip($f[1], 40),
 					'id'=>       $p[7]);
 	}
 	foreach($P as $k=>$r)
@@ -660,7 +716,7 @@ function p2pPrintList()
 	$pp = p2pGetList();	
 	echo " Torrents: ".count($pp)."\n";
 	foreach($pp as $p)
-		echo '  '.ucwords($p['status'])."\t".$p['progress']."%\t".$p['speed']."\t".basename($p['file'])."\n";
+		echo '  #'.$p['id']."\t".ucwords($p['status'])."\t".$p['progress']."%\t".$p['speed']."\t".basename($p['file'])."\n";
 }
 
 function p2pClearList()
