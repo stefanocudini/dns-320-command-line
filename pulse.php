@@ -16,29 +16,30 @@ define('HELP',"
 
 Usage: pulse.php options [host[:port]]
 
-       host                       hostname or ip target, default: pulse
-       port                       port number for host, default: 80
+       host                        hostname or ip target, default: pulse
+       port                        port number for host, default: 80
 OPTIONS:
-       -p,--p2p[=on|off]          get or set p2p client state
-       -c,--p2p-clear             clear p2p complete list
-       -l,--p2p-limit[=down[,up]] get or set p2p speed limit, unlimit: -1
-       -S,--p2p-start[=id,id,...] start all or specific torrent download
-       -O,--p2p-stop[=id,id,...]  stop all or specific torrent download
-       -D,--download[=url]        list or add url in http downloader
-       -C,--download-clear        clear complete http downloads list
-       -L,--download-list[=file]  add urls from file list
-       -n,--nfs[=on|off]          get or set nfs service
-       -f,--ftp[=on|off]          get or set ftp service
-       -t,--temp                  get temperature inside
-       -T,--time                  get date and time of nas
-       -F,--fan[=off|low|high]    get or set fan mode
-       -u,--ups                   get ups state
-       -U,--usb                   get usb disk/flash info
-       -M,--usb-umount            umount usb disk/flash
-       -d,--disks                 get disks usage
-       -s,--shutdown              power off the system
-       -r,--restart               restart the system
-       -h,--help                  print this help
+       -p,--p2p[=on|off]           get or set p2p client state
+       -c,--p2p-clear              clear p2p complete list
+       -l,--p2p-limit[=down[,up]]  get or set p2p speed limit, unlimit: -1
+       -S,--p2p-start[=id,id,...]  start all or specific torrent download
+       -O,--p2p-stop[=id,id,...]   stop all or specific torrent download
+       -X,--p2p-delete[=id,id,...] delete specific torrent download
+       -D,--download[=url]         list or add url in http downloader
+       -C,--download-clear         clear complete http downloads list
+       -L,--download-list[=file]   add urls from file list
+       -n,--nfs[=on|off]           get or set nfs service
+       -f,--ftp[=on|off]           get or set ftp service
+       -t,--temp                   get temperature inside
+       -T,--time                   get date and time of nas
+       -F,--fan[=off|low|high]     get or set fan mode
+       -u,--ups                    get ups state
+       -U,--usb                    get usb disk/flash info
+       -M,--usb-umount             umount usb disk/flash
+       -d,--disks                  get disks usage
+       -s,--shutdown               power off the system
+       -r,--restart                restart the system
+       -h,--help                   print this help
 
 ");
 $options = array(
@@ -47,6 +48,7 @@ $options = array(
 		'l::'=> 'p2p-limit::',
 		'S::'=> 'p2p-start::',
 		'O::'=> 'p2p-stop::',
+		'X::'=> 'p2p-delete::',
 		'D::'=> 'download::',
 		'C'  => 'download-clear',
 		'L:' => 'download-list:',
@@ -174,6 +176,10 @@ $params['p2pStopFile'] = array(
 );
 $params['p2pStartFile'] = array(
 	'cmd'=>'p2p_start_torrent',
+	'f_torrent_index'=>0
+);
+$params['p2pDelFile'] = array(
+	'cmd'=>'p2p_del_torrent',
 	'f_torrent_index'=>0
 );
 
@@ -347,7 +353,7 @@ foreach($opts as $opt=>$optval)
 			$optvals = @explode(',', strstr(',',$optval) ? $optval : $optval.',' );
 			$pp = p2pGetList();
 			foreach($pp as $p)
-				if(empty($optval) or in_array($p['id'],$optvals))
+				if($optval=='' or in_array($p['id'],$optvals))
 					p2pStartFile($p['id']);			
 			p2pPrintList();
 		break;		
@@ -362,10 +368,26 @@ foreach($opts as $opt=>$optval)
 			$optvals = @explode(',', strstr(',',$optval) ? $optval : $optval.',' );
 			$pp = p2pGetList();
 			foreach($pp as $p)
-				if(empty($optval) or in_array($p['id'],$optvals))
+				if($optval=='' or in_array($p['id'],$optvals))
 					p2pStopFile($p['id']);
 			p2pPrintList();
 		break;	
+		
+		case 'X':
+		case 'p2p-delete':
+			if(!p2pCheckOn())
+			{
+				echo "P2P: Off\n";
+				break;
+			}
+			$optvals = @explode(',', strstr(',',$optval) ? $optval : $optval.',' );
+			$pp = p2pGetList();
+			foreach($pp as $p)
+				if(in_array($p['id'],$optvals))//remove only specific torrent id, never all in one time
+					p2pDelFile($p['id']);
+			p2pPrintList();
+		break;
+		
 		case 'D':
 		case 'download':
 			if(!empty($optval))
@@ -674,6 +696,14 @@ function p2pStopFile($idtorrent)
 	global $params;
 	$params['p2pStopFile']['f_torrent_index']= $idtorrent;	
 	http_post_request($urls['p2p'],$params['p2pStopFile']);
+}
+
+function p2pDelFile($idtorrent)
+{
+	global $urls;
+	global $params;
+	$params['p2pDelFile']['f_torrent_index']= $idtorrent;	
+	http_post_request($urls['p2p'],$params['p2pDelFile']);
 }
 
 function p2pGetList()
