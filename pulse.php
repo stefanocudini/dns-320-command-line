@@ -22,9 +22,9 @@ OPTIONS:
        -p,--p2p[=on|off]           get or set p2p client state
        -c,--p2p-clear              clear p2p complete list
        -l,--p2p-limit[=down[,up]]  get or set p2p speed limit, unlimit: -1
-       -S,--p2p-start[=id,id,...]  start all or specific torrent download
-       -O,--p2p-stop[=id,id,...]   stop all or specific torrent download
-       -X,--p2p-delete[=id,id,...] delete specific torrent download
+       -s,--p2p-start[=id,id,...]  start all or specific torrent download
+       -o,--p2p-stop[=id,id,...]   stop all or specific torrent download
+       -x,--p2p-delete[=id,id,...] delete specific torrent download
        -D,--download[=url]         list or add url in http downloader
        -C,--download-clear         clear complete http downloads list
        -L,--download-list[=file]   add urls from file list
@@ -37,8 +37,9 @@ OPTIONS:
        -U,--usb                    get usb disk/flash info
        -M,--usb-umount             umount usb disk/flash
        -d,--disks                  get disks usage
-       -s,--shutdown               power off the system
-       -r,--restart                restart the system
+       -S,--shutdown               power off system now
+       -P,--shutdown-prog          get list schedule power off
+       -r,--restart                restart system
        -h,--help                   print this help
 
 ");
@@ -46,9 +47,9 @@ $options = array(
 		'p::'=> 'p2p::',
 		'c'  => 'p2p-clear',
 		'l::'=> 'p2p-limit::',
-		'S::'=> 'p2p-start::',
-		'O::'=> 'p2p-stop::',
-		'X::'=> 'p2p-delete::',
+		's::'=> 'p2p-start::',
+		'o::'=> 'p2p-stop::',
+		'x::'=> 'p2p-delete::',
 		'D::'=> 'download::',
 		'C'  => 'download-clear',
 		'L:' => 'download-list:',
@@ -61,7 +62,8 @@ $options = array(
 		'U'  => 'usb',
 		'M'  => 'usb-umount',		
 		'd'  => 'disks',
-		's'  => 'shutdown',
+		'S'  => 'shutdown',
+		'P'  => 'shutdown-prog',
 		'r'  => 'restart',
 		'h'  => 'help');
 
@@ -125,6 +127,12 @@ $params['diskStatus'] = array('cmd'=>'Status_HDInfo');
 $urls['sys'] = URLCGI.'system_mgr.cgi';
 $params['sysRestart'] = array('cmd'=>'cgi_restart');
 $params['sysShutdown'] = array('cmd'=>'cgi_shutdown');
+$params['sysShutGetProg'] = array('cmd'=>'cgi_get_power_mgr_xml');
+$params['sysShutSetProg'] = array(
+	'cmd'=>'cgi_power_off_sch',
+	'f_power_off_enable'=>0,
+	'schedule'=>'0 0 0'//es. '1 3 23,6 22 0' -> lun 3:23, sab 22:00
+);
 $params['sysGetFan'] = array('cmd'=>'cgi_get_power_mgr_xml');
 $params['sysSetFan'] = array(
 	'cmd'=>'cgi_fan',
@@ -343,7 +351,7 @@ foreach($opts as $opt=>$optval)
 			echo " Limits: ".$p2pConf['bandwidth_downlaod_rate']." KBps / ".$p2pConf['bandwidth_upload_rate']." KBps\n";
 		break;
 
-		case 'S':
+		case 's':
 		case 'p2p-start':
 			if(!p2pCheckOn())
 			{
@@ -358,7 +366,7 @@ foreach($opts as $opt=>$optval)
 			p2pPrintList();
 		break;		
 
-		case 'O':
+		case 'o':
 		case 'p2p-stop':
 			if(!p2pCheckOn())
 			{
@@ -373,7 +381,7 @@ foreach($opts as $opt=>$optval)
 			p2pPrintList();
 		break;	
 		
-		case 'X':
+		case 'x':
 		case 'p2p-delete':
 			if(!p2pCheckOn())
 			{
@@ -511,12 +519,42 @@ foreach($opts as $opt=>$optval)
 					 "  Used: ".$disk['used_rate']."\n";
 			}
 		break;
+/*		case 'p2p-limit':
 
-		case 's':
+			echo "P2P: On\n";
+			
+			list($down,$up) = @explode(',', strstr(',',$optval) ? $optval : $optval.',' );
+			
+			if(!empty($down) or !empty($up))
+				p2pSetConfig( array('down'=>intval($down?$down:-1), 'up'=>intval($up?$up:-1)) );
+
+			$p2pConf = p2pGetConfig();
+			echo " Limits: ".$p2pConf['bandwidth_downlaod_rate']." KBps / ".$p2pConf['bandwidth_upload_rate']." KBps\n";
+		break;	*/
+		case 'S':
 		case 'shutdown':
 			if(!confirm("Are you sure you want to poweroff NAS now?")) break;
 			echo "Shutdown system...\n";
 			sysShutdown();
+		break;
+		case 'P':
+		case 'shutdown-prog':
+			if(!sysShutProgCheckOn())
+			{
+				echo "Shutdown Schedule: Off\n";
+				break;
+			}
+			echo "Shutdown Schedule: On\n";
+
+			$shut = sysShutGetProg();
+			
+			foreach($shut as $d=>$h)
+				echo " $d: $h\n";
+
+			//code for futures sysShutSetProg()
+			//list($min,$sec) = @explode(':', strstr(':',$optval) ? $optval : ':'.$optval );
+			//if(!empty($min) or !empty($sec))
+			//	p2pSetConfig( array('down'=>intval($down?$down:-1), 'up'=>intval($up?$up:-1)) );
 		break;
 		
 		case 'r':
@@ -567,17 +605,52 @@ function sysShutdown()
 	http_post_request($urls['sys'],$params['sysShutdown']);
 }
 
+function sysShutProgCheckOn()
+{
+	global $urls;
+	global $params;
+	$shut = xml2array( http_post_request($urls['sys'],$params['sysShutGetProg']) );
+	return (bool)$shut['power_off_enable'];
+}
+
+function sysShutGetProg()
+{
+	global $urls;
+	global $params;
+	$shut = xml2array( http_post_request($urls['sys'],$params['sysShutGetProg']) );
+	$days = array('Dom','Lun','Mar','Mer','Gio','Ven','Sab');
+	$ret = array();
+	if((int)$shut['power_off_enable'])
+		for($i=1; $i<=(int)$shut['power_off_sch_count']; $i++)
+		{
+			list($x,$h,$m,$d) = explode(':',$shut["power_off_sch_$i"]);
+			$ret[ $days[$d] ]= "$h:$m";
+		}
+
+	return $ret;
+/*<?xml version="1.0" encoding="UTF-8" ?>
+<power>
+<hdd_hibernation_enable>0</hdd_hibernation_enable>
+<turn_off_time>300</turn_off_time>
+<recovery_enable>1</recovery_enable>
+<power_off_sch_count>2</power_off_sch_count>
+<power_off_sch_1>2:12:5:1:*</power_off_sch_1>
+<power_off_sch_2>2:22:6:6:*</power_off_sch_2>
+<power_off_enable>1</power_off_enable>
+<fan>0</fan>
+</power>*/
+}
+
 function upsGetInfo()
 {
 	global $urls;
 	global $params;
 	$ups = xml2array( http_post_request($urls['stat'],$params['statGetStatus']) );
-	if($usb['usb_type']=='UPS')
+	if($ups['usb_type']=='UPS')
 	{
-		$usbret = array(
-			'bat'  => $usb['battery'],
-			'stat' => $usb['ups_status']);
-		return $upsret;
+		return array(
+			'bat'  => $ups['battery'],
+			'stat' => $ups['ups_status']);
 	}
 	else
 		return false;
@@ -591,11 +664,9 @@ function usbGetInfo()
 	
 	if($usb['usb_type']=='FLASH')
 	{
-		$usbret = array(
+		return array(
 			'name' => $usb['flash_info']['Manufacturer'].' '.$usb['flash_info']['Product'],
-			'disk' => $usb['flash_info']['Partition']
-			);
-		return $usbret;
+			'disk' => $usb['flash_info']['Partition']);
 	}
 	else
 		return false;
