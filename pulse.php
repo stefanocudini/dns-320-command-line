@@ -53,11 +53,11 @@ $options = array(
 		'D::'=> 'download::',
 		'C'  => 'download-clear',
 		'L:' => 'download-list:',
-		'n::'=> 'nfs::',
-		'f::'=> 'ftp::',
+		'N::'=> 'nfs::',
+		'F::'=> 'ftp::',
 		't'  => 'temp',
 		'T'  => 'time',
-		'F::'=> 'fan::',
+		'a::'=> 'fan::',
 		'u'  => 'ups',
 		'U'  => 'usb',
 		'M'  => 'usb-umount',		
@@ -65,6 +65,7 @@ $options = array(
 		'S'  => 'shutdown',
 		'P'  => 'shutdown-prog',
 		'r'  => 'restart',
+		'f'  => 'force',
 		'h'  => 'help');
 
 if(version_compare(PHP_VERSION, '5.3.0', '<'))
@@ -73,6 +74,8 @@ else
 	$opts = getopt(implode('',array_keys($options)),array_values($options));
 
 debug(print_r($opts,true));
+
+$force = false;//force confirmation commands
 
 $hostport = array_pop($argv);//last parameter
 if($argc>1 and $hostport{0}!='-')//if isn't option
@@ -428,7 +431,7 @@ foreach($opts as $opt=>$optval)
 			downPrintList();
 		break;		
 
-		case 'n':
+		case 'N':
 		case 'nfs':
 			switch($optval)
 			{
@@ -444,7 +447,7 @@ foreach($opts as $opt=>$optval)
 			nfsPrintList();
 		break;
 		
-		case 'f':
+		case 'F':
 		case 'ftp':
 			switch($optval)
 			{
@@ -490,7 +493,7 @@ foreach($opts as $opt=>$optval)
 			echo "TIME:\t".sysGetTime();
 		break;
 		
-		case 'F':
+		case 'a':
 		case 'fan':
 			switch($optval)
 			{
@@ -562,6 +565,11 @@ foreach($opts as $opt=>$optval)
 			if(!confirm("Are you sure you want to restart NAS now?")) break;
 			echo "Restart system...\n";
 			sysRestart();
+		break;
+
+		case 'f':
+		case 'force':
+			$force = true;
 		break;
 		
 		case 'h':
@@ -997,6 +1005,8 @@ function login()		//LOGIN
 
 function confirm($text)
 {
+	global $force;
+	if($force) return true;
 	echo "$text [y/n] ";
 	return trim(fgets(STDIN))=='y';
 }
