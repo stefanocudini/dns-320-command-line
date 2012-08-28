@@ -159,7 +159,7 @@ $params['p2pStatus'] = array(
 $params['p2pGetConfig'] = array('cmd'=>'p2p_get_setting_info');
 $params['p2pSetConfig'] = array(
 	'f_P2P'=>1,
-	'f_auto_download'=>0,
+	'f_auto_download'=>1,
 	'f_port_custom'=>'true',
 	'f_seed_type'=>0,
 	'f_encryption'=>1,
