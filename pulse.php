@@ -594,6 +594,33 @@ function checkurl($url)
 	return (bool)@file_get_contents($url,0,NULL,0,1);
 }
 
+function human2bytes($t)
+{
+	if( preg_match("#([0-9.]{1,})(B|KB|MB|GB|TB)#",$t,$maches) )
+	{
+		$num = $maches[1];
+		$unit = $maches[2];
+		$mm = array('B'=>1,
+					'KB'=>1024,
+					'MB'=>1024*1024,
+					'GB'=>1024*1024*1024,
+					'TB'=>1024*1024*1024*1024);
+		return round( floatval($num) * $mm[$unit] );
+	}
+	else
+		return false;
+}
+
+function bytes2human($size)
+{
+    $mod = 1024;
+    $units = array('B','KB','MB','GB','TB');
+    for ($i = 0; $size > $mod; $i++) {
+        $size /= $mod;
+    }
+    return round($size, 1).$units[$i];
+}
+
 function help()
 {
 	die(HELP);
@@ -797,6 +824,7 @@ function p2pGetList()
 	//correcting not standard JSON!! fuck!!
 	
 	$pp = json_decode($jj,true);	
+
 	$P = array();
 	foreach($pp['rows'] as $pc)
 	{
@@ -807,12 +835,22 @@ function p2pGetList()
 		
 		preg_match("/.*>(.*)<.*/", $p[0], $f);//file
 		preg_match("/.*>(.*)<.*/", $p[3], $g);//progress
-		$P[]= array('progress'=> intval(trim($g[1])),
+		$perc = intval(trim($g[1]));
+		$size_tot = $p[2];
+		$tot = human2bytes($size_tot);
+		$size_com = bytes2human(($tot/100)*$perc);
+
+//TODO time remain
+		$P[]= array('progress'=> $perc,
 					'status'=>   $s,
 					'speed'=>    $p[5],
 					'file'=>     substrStrip($f[1], 40),
+					'size-tot'=> $size_tot,
+					'size-com'=> $size_com,
 					'id'=>       $p[7]);
 	}
+print_r($P);
+
 	foreach($P as $k=>$r)
 		$progress[$k]= $r['progress'];
 	array_multisort($progress, SORT_DESC, $P);
@@ -825,7 +863,7 @@ function p2pPrintList()
 	$pp = p2pGetList();	
 	echo " Torrents: ".count($pp)."\n";
 	foreach($pp as $p)
-		echo '  #'.$p['id']."\t".ucwords($p['status'])."\t".$p['progress']."%\t".$p['speed']."\t".basename($p['file'])."\n";
+		echo '  #'.$p['id']."\t".ucwords($p['status'])."\t".$p['progress']."%\t(".$p['size-com']." of ".$p['size-tot'].")\t".$p['speed']."\t".basename($p['file'])."\n";
 }
 
 function p2pClearList()
