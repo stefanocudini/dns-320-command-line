@@ -849,7 +849,6 @@ function p2pGetList()
 					'size-com'=> $size_com,
 					'id'=>       $p[7]);
 	}
-print_r($P);
 
 	foreach($P as $k=>$r)
 		$progress[$k]= $r['progress'];
