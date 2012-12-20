@@ -101,7 +101,7 @@ if(version_compare(PHP_VERSION, '5.3.0', '<'))
 else
 	$opts = getopt(implode('',array_keys($options)),array_values($options));
 
-debug(print_r($opts,true));
+debug(print_r(array('OPTIONS'=>$opts),true));
 
 $force = false;//force confirmation commands
 
@@ -810,7 +810,7 @@ function p2pSetConfig($sets=array())
 	if(isset($sets['down'])) $params['p2pSetConfig']['f_flow_control_schedule_max_download_rate']= $sets['down'];
 	if(isset($sets['up']))   $params['p2pSetConfig']['f_flow_control_schedule_max_upload_rate']= $sets['up'];
 
-	debug("p2pSetConfig:\n".print_r($params['p2pSetConfig'],true));
+	debug(print_r(array('p2pSetConfig'=>$params['p2pSetConfig']),true));
 	
 	http_post_request($urls['p2p'],$params['p2pSetConfig']);
 	sleep(SDELAY);
@@ -877,9 +877,12 @@ function p2pGetList()
 					'size-com'=> $size_com,
 					'id'=>       $p[7]);
 	}
+	
+	if(count($P)==0) return array();
 
 	foreach($P as $k=>$r)
 		$progress[$k]= $r['progress'];
+		
 	array_multisort($progress, SORT_DESC, $P);
 
 	return $P;
@@ -984,8 +987,6 @@ function nfsSetConfig($sets=array())
 	global $urls;
 	global $params;
 	if(isset($sets['on'])) $params['nfsSetConfig']['nfs_status']= $sets['on'] ? 1:0;
-
-	debug("nfsSetConfig:\n".print_r($params['nfsSetConfig'],true));
 	
 	http_post_request($urls['nfs'],$params['nfsSetConfig']);
 	sleep(SDELAY);
@@ -1046,8 +1047,8 @@ function ftpSetConfig($sets=array())
 	
 	if(isset($sets['on'])) $params['ftpSetConfig']['f_state']= $sets['on'] ? 1:0;
 
-	debug("ftpSetConfig:\n".print_r($params['ftpSetConfig'],true));
-	
+	debug(print_r(array('ftpSetConfig'=>$params['ftpSetConfig']),true));
+		
 	http_post_request($urls['ftp'],$params['ftpSetConfig']);
 	sleep(SDELAY);
 }
@@ -1061,7 +1062,7 @@ function login()		//LOGIN
 	global $params;
 
 	list($head,$body) = http_post_request($urls['login'], $params['loginSet'], true);
-#	debug(print_r($head,true));
+	debug(print_r(array('LOGIN'=>$head),true));
 //login conditions:
 //RESP OK: "Set-Cookie:username=admin; path=/"
 //RESP ERROR: "Location:http://host/web/relogin.html"
@@ -1324,16 +1325,19 @@ function http_post_requestCurl($url, $pdata=null, $getHeaders=false)
 	foreach($resRows as $row)
 		$head[ current(explode(': ',$row)) ] = next(explode(': ',$row));
 	//split http head in headers key=>value
-	
-	$reqRows = explode("\r\n", trim($info['request_header']));
+
+	if(isset($info['request_header']))
+		$reqRows = explode("\r\n", trim($info['request_header']));
+	else
+		$reqRows = array();
 
 	if($info['download_content_length']>0)
-		$body = substr($resp, -$info['download_content_length']);
+		$body = substr($resp, - $info['download_content_length']);
 	else
 		$body = next(explode("\r\n\r\n",$resp));
-	
+
 	$resp = $getHeaders ? array($head, $body) : $body;
-	
+
 	debug(#"URL:    ".$url."\n".
 		  "REQUEST: ".implode("\n".
 		  "         ",$reqRows)."\n".
