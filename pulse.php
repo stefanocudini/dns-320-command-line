@@ -34,7 +34,8 @@ define('DEBUG', false);
 #'disks'      =>  array('d', ''),
 #'shutdown'   =>  array('S', ''),
 #'shutdown-prog' =>  array('P', ''),
-#'restart' =>  array('r', ''),
+#'restart' =>  array('R', ''),
+#'logout'  =>  array('O', ''),
 #'force'   =>  array('f', ''),
 #'help'    =>  array('h', '')
 #);
@@ -60,7 +61,8 @@ $options = array(
 		'd'  => 'disks',
 		'S'  => 'shutdown',
 		'P'  => 'shutdown-prog',
-		'r'  => 'restart',
+		'R'  => 'restart',
+		'O'  => 'logout',		
 		'f'  => 'force',
 		'h'  => 'help');
 
@@ -91,7 +93,8 @@ OPTIONS:
        -d,--disks                  get disks usage
        -S,--shutdown               power off system now
        -P,--shutdown-prog          get list schedule power off
-       -r,--restart                restart system
+       -R,--restart                restart system
+       -O,--logout                 logout user admin from current host
        -h,--help                   print this help
 
 ");
@@ -144,6 +147,10 @@ $params['loginSet'] = array(
 	'pre_pwd'=>USER,
 	'C1'=>'ON',
 	'ssl_port'=>443
+);
+$params['loginLogout'] = array(//TODO sono parametri get
+	'cmd'=>'logout',
+	'name'=>USER
 );
 
 $urls['stat'] = URLCGI.'status_mgr.cgi';
@@ -550,18 +557,7 @@ foreach($opts as $opt=>$optval)
 					 "  Used: ".$disk['used_rate']."\n";
 			}
 		break;
-/*		case 'p2p-limit':
 
-			echo "P2P: On\n";
-			
-			list($down,$up) = @explode(',', strstr(',',$optval) ? $optval : $optval.',' );
-			
-			if(!empty($down) or !empty($up))
-				p2pSetConfig( array('down'=>intval($down?$down:-1), 'up'=>intval($up?$up:-1)) );
-
-			$p2pConf = p2pGetConfig();
-			echo " Limits: ".$p2pConf['bandwidth_downlaod_rate']." KBps / ".$p2pConf['bandwidth_upload_rate']." KBps\n";
-		break;	*/
 		case 'S':
 		case 'shutdown':
 			if(!confirm("Are you sure you want to poweroff NAS now?")) break;
@@ -588,13 +584,19 @@ foreach($opts as $opt=>$optval)
 			//	p2pSetConfig( array('down'=>intval($down?$down:-1), 'up'=>intval($up?$up:-1)) );
 		break;
 		
-		case 'r':
+		case 'R':
 		case 'restart':
 			if(!confirm("Are you sure you want to restart NAS now?")) break;
 			echo "Restart system...\n";
 			sysRestart();
 		break;
 
+		case 'O':
+		case 'logout':
+			echo "Destroy login session from current host...\n";
+			logout();
+		break;
+		
 		case 'f':
 		case 'force':
 			$force = true;
@@ -1066,6 +1068,16 @@ function login()		//LOGIN
 //login conditions:
 //RESP OK: "Set-Cookie:username=admin; path=/"
 //RESP ERROR: "Location:http://host/web/relogin.html"
+	return (isset($head['Set-Cookie']) and strstr($head['Set-Cookie'],'username='.USER) );
+}
+
+function logout()		//LOGOUT
+{
+	global $urls;
+	global $params;
+
+	list($head,$body) = http_post_request($urls['login'], $params['loginLogout'], true);
+	debug(print_r(array('LOGOUT'=>$head),true));
 	return (isset($head['Set-Cookie']) and strstr($head['Set-Cookie'],'username='.USER) );
 }
 
