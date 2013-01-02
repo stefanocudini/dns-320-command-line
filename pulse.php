@@ -12,7 +12,6 @@ requirements: php5-cli,	php5-curl
 
 define('DEBUG', false);
 
-
 #$nameOptions = array(
 #'p2p' => array('p', '::'),
 #'p2p-clear'  => array('c', ''),
@@ -37,8 +36,10 @@ define('DEBUG', false);
 #'restart' =>  array('R', ''),
 #'logout'  =>  array('O', ''),
 #'force'   =>  array('f', ''),
+#'quiet'   =>  array('q', ''),
 #'help'    =>  array('h', '')
 #);
+#uniform options in unique array
 		
 $options = array(
 		'p::'=> 'p2p::',
@@ -64,6 +65,7 @@ $options = array(
 		'R'  => 'restart',
 		'O'  => 'logout',		
 		'f'  => 'force',
+		'q'  => 'quiet',		
 		'h'  => 'help');
 
 define('HELP',"
@@ -95,6 +97,8 @@ OPTIONS:
        -P,--shutdown-prog          get list schedule power off
        -R,--restart                restart system
        -O,--logout                 logout user admin from current host
+       -f,--force                  force execute of comfirm command
+       -q,--quiet                  quiet mode, suppress output
        -h,--help                   print this help
 
 ");
@@ -107,6 +111,7 @@ else
 debug(print_r(array('OPTIONS'=>$opts),true));
 
 $force = false;//force confirmation commands
+$quiet = false;//no verbose mode
 
 $hostport = array_pop($argv);//last parameter
 if($argc>1 and $hostport{0}!='-')//if isn't option
@@ -148,7 +153,7 @@ $params['loginSet'] = array(
 	'C1'=>'ON',
 	'ssl_port'=>443
 );
-$params['loginLogout'] = array(//TODO sono parametri get
+$params['loginLogout'] = array(
 	'cmd'=>'logout',
 	'name'=>USER
 );
@@ -327,6 +332,8 @@ $params['isoDelShare'] = array(
 
 //start
 
+ob_start();
+
 login() or die("ERROR LOGIN\n");
 
 foreach($opts as $opt=>$optval)
@@ -355,7 +362,7 @@ foreach($opts as $opt=>$optval)
 			echo " Speed:  ".$p2pSpeed['down']." KBps / ".$p2pSpeed['up']." KBps\n";
 			$p2pConf = p2pGetConfig();
 			echo " Limits: ".$p2pConf['bandwidth_downlaod_rate']." KBps / ".$p2pConf['bandwidth_upload_rate']." KBps\n";
-			p2pPrintList();
+			echo p2pPrintList();
 		break;
 		
 		case 'c':
@@ -368,7 +375,7 @@ foreach($opts as $opt=>$optval)
 			echo "P2P: On\n";
 			
 			p2pClearList();
-			p2pPrintList();
+			echo p2pPrintList();
 		break;
 		
 		case 'l':
@@ -401,7 +408,7 @@ foreach($opts as $opt=>$optval)
 			foreach($pp as $p)
 				if($optval=='' or in_array($p['id'],$optvals))
 					p2pStartFile($p['id']);			
-			p2pPrintList();
+			echo p2pPrintList();
 		break;		
 
 		case 'o':
@@ -416,7 +423,7 @@ foreach($opts as $opt=>$optval)
 			foreach($pp as $p)
 				if($optval=='' or in_array($p['id'],$optvals))
 					p2pStopFile($p['id']);
-			p2pPrintList();
+			echo p2pPrintList();
 		break;	
 		
 		case 'x':
@@ -431,7 +438,7 @@ foreach($opts as $opt=>$optval)
 			foreach($pp as $p)
 				if(in_array($p['id'],$optvals))//remove only specific torrent id, never all in one time
 					p2pDelFile($p['id']);
-			p2pPrintList();
+			echo p2pPrintList();
 		break;
 		
 		case 'D':
@@ -442,7 +449,7 @@ foreach($opts as $opt=>$optval)
 					echo "ERROR URL: ".$optval;
 					break;
 				}
-			downPrintList();
+			echo downPrintList();
 		break;
 
 		case 'C':
@@ -451,7 +458,7 @@ foreach($opts as $opt=>$optval)
 			foreach($dd as $d)
 				if($d['status']=='complete' or $d['status']=='failed')
 					downDelUrl($d['id']);
-			downPrintList();
+			echo downPrintList();
 		break;
 
 		case 'L':
@@ -463,7 +470,7 @@ foreach($opts as $opt=>$optval)
 			}
 			foreach(file($optval,FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES) as $url)
 				downAddUrl($url);
-			downPrintList();
+			echo downPrintList();
 		break;		
 
 		case 'N':
@@ -479,7 +486,7 @@ foreach($opts as $opt=>$optval)
 			}
 			$nfsConf = nfsGetConfig();
 			echo "NFS: ".($nfsConf['enable']?'On':'Off')."\n";							     
-			nfsPrintList();
+			echo nfsPrintList();
 		break;
 		
 		case 'F':
@@ -601,6 +608,11 @@ foreach($opts as $opt=>$optval)
 		case 'force':
 			$force = true;
 		break;
+
+		case 'q':
+		case 'quiet':
+			$quiet = true;
+		break;		
 		
 		case 'h':
 		case 'help':
@@ -609,6 +621,11 @@ foreach($opts as $opt=>$optval)
 	}
 	echo "\n";
 }
+
+$OUT = ob_get_clean();
+
+if(!$quiet)
+	echo $OUT;
 
 //end
 
@@ -893,9 +910,10 @@ function p2pGetList()
 function p2pPrintList()
 {
 	$pp = p2pGetList();	
-	echo " Torrents: ".count($pp)."\n";
+	$out = " Torrents: ".count($pp)."\n";
 	foreach($pp as $p)
-		echo '  #'.$p['id']."\t".ucwords($p['status'])."\t".$p['progress']."%\t(".$p['size-com']." of ".$p['size-tot'].")\t".$p['speed']."\t".basename($p['file'])."\n";
+		$out .= '  #'.$p['id']."\t".ucwords($p['status'])."\t".$p['progress']."%\t(".$p['size-com']." of ".$p['size-tot'].")\t".$p['speed']."\t".basename($p['file'])."\n";
+	return $out;
 }
 
 function p2pClearList()
@@ -972,9 +990,10 @@ function downGetList()
 function downPrintList()
 {
 	$dd = downGetList();
-	echo "DOWNLOADS: ".count($dd)."\n";
+	$out .= "DOWNLOADS: ".count($dd)."\n";
 	foreach($dd as $d)
-		echo ' '.ucwords($d['status'])."\t".$d['progress']."\t".$d['speed']."\t\t".basename($d['url'])."\n";
+		$out .= ' '.ucwords($d['status'])."\t".$d['progress']."\t".$d['speed']."\t\t".basename($d['url'])."\n";
+	return $out;
 }
 
 function nfsGetConfig()
@@ -1027,12 +1046,14 @@ function nfsPrintList()
 {
 	$nfss = nfsGetList();
 	#$mlen = max(array_map('strlen',array_keys($nfss)));
+	$out ='';
 	foreach($nfss as $name=>$n)
-		echo ' '.#str_pad($name.':',$mlen+2,' ')
+		$out .= ' '.#str_pad($name.':',$mlen+2,' ')
 				$n['path']."\t\t".
 				$n['host'].
 				($n['write']?',rw':',ro').
 				($n['recycle']?',recycle':'')."\n";
+	return $out;
 }
 
 function ftpGetConfig()
@@ -1085,7 +1106,7 @@ function confirm($text)
 {
 	global $force;
 	if($force) return true;
-	echo "$text [y/n] ";
+	file_put_contents('php://stderr',"$text [y/n] ");
 	return trim(fgets(STDIN))=='y';
 }
 
