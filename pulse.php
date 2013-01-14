@@ -831,7 +831,6 @@ function p2pGetConfig()
 	global $urls;
 	global $params;
 	$c = xml2array( http_post_request($urls['p2p'],$params['p2pGetConfig']) );
-	print_r($c);
 	return $c;
 }
 
