@@ -11,35 +11,6 @@ requirements: php5-cli,	php5-curl
 ************************************************/
 
 define('DEBUG', false);
-
-#$nameOptions = array(
-#'p2p' => array('p', '::'),
-#'p2p-clear'  => array('c', ''),
-#'p2p-limit'  => array('l', '::'),
-#'p2p-start'  => array('s', '::'),
-#'p2p-stop'   => array('o', '::'),
-#'p2p-delete' =>  array('x', '::'),
-#'download::' =>  array('D', '::'),
-#'download-clear' =>  array('C', ''),
-#'download-list:' =>  array('L', ':'),
-#'nfs::' =>  array('N', '::'),
-#'ftp::' =>  array('F', '::'),
-#'temp'  =>  array('t', ''),
-#'time'  =>  array('T', ''),
-#'fan::' =>  array('a', '::'),
-#'ups'   =>  array('u', ''),
-#'usb'   =>  array('U', ''),
-#'usb-umount' =>  array('M', ''),
-#'disks'      =>  array('d', ''),
-#'shutdown'   =>  array('S', ''),
-#'shutdown-prog' =>  array('P', ''),
-#'restart' =>  array('R', ''),
-#'logout'  =>  array('O', ''),
-#'force'   =>  array('f', ''),
-#'quiet'   =>  array('q', ''),
-#'help'    =>  array('h', '')
-#);
-#uniform options in unique array
 		
 $options = array(
 		'p::'=> 'p2p::',
@@ -210,6 +181,7 @@ $params['p2pSetConfig'] = array(
 	'cmd'=>'p2p_set_config',
 	'tmp_p2p_state'=>''
 );
+
 $params['p2pGetList'] = array(
 	'cmd'=>'p2p_get_list_by_priority',
 	'page'=>1,
@@ -339,9 +311,10 @@ login() or die("ERROR LOGIN\n");
 foreach($opts as $opt=>$optval)
 {
 	switch($opt)
-	{		
+	{
 		case 'p':
 		case 'p2p':
+			$p2pConf = p2pInitConfig();
 			switch($optval)
 			{
 				case 'on':
@@ -351,7 +324,7 @@ foreach($opts as $opt=>$optval)
 					p2pSetConfig( array('on'=>false) );
 				break;
 			}
-			if(!p2pCheckOn())
+			if(!p2pCheckOn())//new p2pGetConfig()
 			{
 				echo "P2P: Off\n";
 				break;
@@ -380,6 +353,7 @@ foreach($opts as $opt=>$optval)
 		
 		case 'l':
 		case 'p2p-limit':
+			$p2pConf = p2pInitConfig();
 			if(!p2pCheckOn())
 			{
 				echo "P2P: Off\n";
@@ -814,11 +788,51 @@ function p2pCheckOn()
 	return  (bool)$p2pConf['p2p'];
 }
 
+function p2pInitConfig()
+{
+	global $urls;
+	global $params;	
+/*
+    [result] => 1
+    [p2p] => 1
+    [port] => true
+    [port_number] => 6881
+    [bandwidth] => true
+    [bandwidth_upload_rate] => -1
+    [bandwidth_downlaod_rate] => -1
+    [seeding] => 0
+    [seeding_percent] => 0
+    [seeding_mins] => 0
+    [encryption] => 1
+    [autodownload] => 0
+    [current_ses_state] => 0
+    [flow_control_download_rate] => -1
+    [flow_control_upload_rate] => -1
+    [flow_control] => 111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
+*/
+	$c = p2pGetConfig();
+	return $params['p2pSetConfig'] = array(
+		'f_P2P'=> $c['p2p'],
+		'f_auto_download'=> $c['autodownload'],
+		'f_port_custom'=> $c['p2p']?'true':'false',
+		'f_seed_type'=> $c['seeding'],
+		'f_encryption'=> $c['encryption'],
+		'f_flow_control_schedule_max_download_rate'=> $c['bandwidth_downlaod_rate'],
+		'f_flow_control_schedule_max_upload_rate'=> $c['bandwidth_upload_rate'],
+		'f_bandwidth_auto'=> 'false',
+		'f_flow_control_schedule'=>$c['flow_control'],#str_repeat('1',168),
+		'cmd'=>'p2p_set_config',
+		'tmp_p2p_state'=>''
+	);
+}
+
 function p2pGetConfig()
 {
 	global $urls;
 	global $params;
-	return xml2array( http_post_request($urls['p2p'],$params['p2pGetConfig']) );
+	$c = xml2array( http_post_request($urls['p2p'],$params['p2pGetConfig']) );
+	print_r($c);
+	return $c;
 }
 
 function p2pSetConfig($sets=array())
