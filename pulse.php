@@ -1,4 +1,4 @@
-#!/usr/bin/env php
+#!/usr/bin/php
 <?
 /*
 COMMAND-LINE INTERFACE for D-LINK Sharecenter DNS-320 Pulse
