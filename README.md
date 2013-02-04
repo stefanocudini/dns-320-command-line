@@ -8,7 +8,7 @@ php5-cli
 recommends:
 php5-curl
 
-some features:
+Some features:
 get or set p2p client state, 
 clear p2p complete list, 
 list or add url in http downloader, 
@@ -24,7 +24,7 @@ get nfs shares,
 get or set ftp state,
 shutdown and restart system
 
-
+```
 Usage: pulse.php options [host[:port]]
 
        host                        hostname or ip target, default: pulse
@@ -56,4 +56,4 @@ OPTIONS:
        -f,--force                  force execute of comfirm command
        -q,--quiet                  quiet mode, suppress output
        -h,--help                   print this help
-
+```
