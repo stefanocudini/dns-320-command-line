@@ -19,6 +19,7 @@ $options = array(
 		's::'=> 'p2p-start::',
 		'o::'=> 'p2p-stop::',
 		'x::'=> 'p2p-delete::',
+		'a::'=> 'p2p-auto::',
 		'D::'=> 'download::',
 		'C'  => 'download-clear',
 		'L:' => 'download-list:',
@@ -26,7 +27,7 @@ $options = array(
 		'F::'=> 'ftp::',
 		't'  => 'temp',
 		'T'  => 'time',
-		'a::'=> 'fan::',
+		'A::'=> 'fan::',
 		'u'  => 'ups',
 		'U'  => 'usb',
 		'M'  => 'usb-umount',		
@@ -52,6 +53,7 @@ OPTIONS:
        -s,--p2p-start[=id,id,...]  start all or specific torrent download
        -o,--p2p-stop[=id,id,...]   stop all or specific torrent download
        -x,--p2p-delete[=id,id,...] delete specific torrent download
+       -a,--p2p-auto[=on|off]      get or set p2p automatic download       
        -D,--download[=url]         list or add url in http downloader
        -C,--download-clear         clear complete http downloads list
        -L,--download-list[=file]   add urls from file list
@@ -59,7 +61,7 @@ OPTIONS:
        -F,--ftp[=on|off]           get or set ftp service
        -t,--temp                   get temperature inside
        -T,--time                   get date and time of nas
-       -a,--fan[=off|low|high]     get or set fan mode
+       -A,--fan[=off|low|high]     get or set fan mode
        -u,--ups                    get ups state
        -U,--usb                    get usb disk/flash info
        -M,--usb-umount             umount usb disk/flash
@@ -273,7 +275,9 @@ $params['ftpSetConfig'] = array(
 	'f_state'=>1
 );
 
-/*$urls['iso'] = URLCGI.'isomount_mgr.cgi';
+/*
+//TODO
+$urls['iso'] = URLCGI.'isomount_mgr.cgi';
 $params['isoGetList'] = array(
 	'cmd'=>'cgi_get_iso_share',
 	'page'=>1,
@@ -302,7 +306,7 @@ $params['isoDelShare'] = array(
 );//*/
 
 
-//start
+//START RUN!
 
 ob_start();
 
@@ -414,6 +418,27 @@ foreach($opts as $opt=>$optval)
 					p2pDelFile($p['id']);
 			echo p2pPrintList();
 		break;
+
+		case 'a':
+		case 'p2p-auto':
+			if(!p2pCheckOn())
+			{
+				echo "P2P: Off\n";
+				break;
+			}
+			$p2pConf = p2pInitConfig();
+			switch($optval)
+			{
+				case 'on':
+					p2pSetConfig( array('auto'=>true) );
+				break;
+				case 'off':
+					p2pSetConfig( array('auto'=>false) );
+				break;
+			}
+			$p2pConf = p2pGetConfig();
+			echo " AutoDownload: ".($p2pConf['autodownload']?'On':'Off')."\n";
+		break;		
 		
 		case 'D':
 		case 'download':
@@ -509,7 +534,7 @@ foreach($opts as $opt=>$optval)
 			echo "TIME:\t".sysGetTime();
 		break;
 		
-		case 'a':
+		case 'A':
 		case 'fan':
 			switch($optval)
 			{
@@ -841,7 +866,8 @@ function p2pSetConfig($sets=array())
 	if(isset($sets['on']))   $params['p2pSetConfig']['f_P2P']= $sets['on'] ? 1:0;
 	if(isset($sets['down'])) $params['p2pSetConfig']['f_flow_control_schedule_max_download_rate']= $sets['down'];
 	if(isset($sets['up']))   $params['p2pSetConfig']['f_flow_control_schedule_max_upload_rate']= $sets['up'];
-
+	if(isset($sets['auto'])) $params['p2pSetConfig']['f_auto_download']= $sets['auto'] ? 1:0;
+	
 	debug(print_r(array('p2pSetConfig'=>$params['p2pSetConfig']),true));
 	
 	http_post_request($urls['p2p'],$params['p2pSetConfig']);
