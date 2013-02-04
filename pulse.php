@@ -16,10 +16,10 @@ $options = array(
 		'p::'=> 'p2p::',
 		'c'  => 'p2p-clear',
 		'l::'=> 'p2p-limit::',
+		'a::'=> 'p2p-auto::',		
 		's::'=> 'p2p-start::',
 		'o::'=> 'p2p-stop::',
 		'x::'=> 'p2p-delete::',
-		'a::'=> 'p2p-auto::',
 		'D::'=> 'download::',
 		'C'  => 'download-clear',
 		'L:' => 'download-list:',
@@ -50,10 +50,10 @@ OPTIONS:
        -p,--p2p[=on|off]           get or set p2p client state
        -c,--p2p-clear              clear p2p complete list
        -l,--p2p-limit[=down[,up]]  get or set p2p speed limit, unlimit: -1
+       -a,--p2p-auto[=on|off]      get or set p2p automatic download       
        -s,--p2p-start[=id,id,...]  start all or specific torrent download
        -o,--p2p-stop[=id,id,...]   stop all or specific torrent download
-       -x,--p2p-delete[=id,id,...] delete specific torrent download
-       -a,--p2p-auto[=on|off]      get or set p2p automatic download       
+       -x,--p2p-delete[=id,id,...] delete specific torrent download       
        -D,--download[=url]         list or add url in http downloader
        -C,--download-clear         clear complete http downloads list
        -L,--download-list[=file]   add urls from file list
@@ -339,6 +339,7 @@ foreach($opts as $opt=>$optval)
 			echo " Speed:  ".$p2pSpeed['down']." KBps / ".$p2pSpeed['up']." KBps\n";
 			$p2pConf = p2pGetConfig();
 			echo " Limits: ".$p2pConf['bandwidth_downlaod_rate']." KBps / ".$p2pConf['bandwidth_upload_rate']." KBps\n";
+			echo " AutoDownload: ".($p2pConf['autodownload']?'On':'Off')."\n";			
 			echo p2pPrintList();
 		break;
 		
@@ -373,7 +374,28 @@ foreach($opts as $opt=>$optval)
 			$p2pConf = p2pGetConfig();
 			echo " Limits: ".$p2pConf['bandwidth_downlaod_rate']." KBps / ".$p2pConf['bandwidth_upload_rate']." KBps\n";
 		break;
-
+		
+		case 'a':
+		case 'p2p-auto':
+			if(!p2pCheckOn())
+			{
+				echo "P2P: Off\n";
+				break;
+			}
+			$p2pConf = p2pInitConfig();
+			switch($optval)
+			{
+				case 'on':
+					p2pSetConfig( array('auto'=>true) );
+				break;
+				case 'off':
+					p2pSetConfig( array('auto'=>false) );
+				break;
+			}
+			$p2pConf = p2pGetConfig();
+			echo " AutoDownload: ".($p2pConf['autodownload']?'On':'Off')."\n";
+		break;	
+		
 		case 's':
 		case 'p2p-start':
 			if(!p2pCheckOn())
@@ -417,28 +439,7 @@ foreach($opts as $opt=>$optval)
 				if(in_array($p['id'],$optvals))//remove only specific torrent id, never all in one time
 					p2pDelFile($p['id']);
 			echo p2pPrintList();
-		break;
-
-		case 'a':
-		case 'p2p-auto':
-			if(!p2pCheckOn())
-			{
-				echo "P2P: Off\n";
-				break;
-			}
-			$p2pConf = p2pInitConfig();
-			switch($optval)
-			{
-				case 'on':
-					p2pSetConfig( array('auto'=>true) );
-				break;
-				case 'off':
-					p2pSetConfig( array('auto'=>false) );
-				break;
-			}
-			$p2pConf = p2pGetConfig();
-			echo " AutoDownload: ".($p2pConf['autodownload']?'On':'Off')."\n";
-		break;		
+		break;	
 		
 		case 'D':
 		case 'download':
