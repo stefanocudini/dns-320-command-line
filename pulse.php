@@ -2,12 +2,13 @@
 <?
 /*
 COMMAND-LINE INTERFACE for D-LINK Sharecenter DNS-320 Pulse
+https://github.com/stefanocudini/dns-320-command-line
 https://bitbucket.org/zakis_/dns-320-command-line
 
 Copyleft Stefano Cudini 2012
 stefano.cudini@gmail.com
 
-requirements: php5-cli,	php5-curl
+requirements: php5-cli,	recommends: php5-curl
 ************************************************/
 
 define('DEBUG', false);
