@@ -15,16 +15,26 @@ a,
 a:visited {
 	color:#0d0;
 }
+pre {
+	max-width:50%;
+	float:left;
+	margin:20px;
+	padding:20px;
+	border-left:1px solid 
+}
+hr {
+	border:none;
+}
 </style>
 </head>
 
 <body>
-<h2>SIMPLE COMMAND-LINE INTERFACE for D-LINK SHARECENTER DNS-320</h2>
+
 <img src="dns-320-pulse.png" />
+<h2>SIMPLE COMMAND-LINE INTERFACE for D-LINK SHARECENTER DNS-320</h2>
 <div id="content">
 <small>
-Copyleft Stefano Cudini 2012
-stefano.cudini@gmail.com
+Copyleft Stefano Cudini 2012 stefano.cudini@gmail.com
 </small>
 
 <ul>
@@ -36,28 +46,26 @@ stefano.cudini@gmail.com
 
 <pre>
 requirements:
-php5-cli
+	php5-cli
 recommends:
-php5-curl
+	php5-curl
 
 some features:
-get or set p2p client state, 
-clear p2p complete list, 
-list or add url in http downloader, 
-download multiple urls from file list,
-clear complete http downloads list, 
-get temperature, 
-get or set fan mode, 
-get ups state, 
-get usb disk info,
-umount usb disk,
-get disks usage, 
-get nfs shares,
-get or set ftp state,
-shutdown and restart system
+	get or set p2p client state, 
+	clear p2p complete list, 
+	list or add url in http downloader, 
+	download multiple urls from file list,
+	clear complete http downloads list, 
+	get temperature, 
+	get or set fan mode, 
+	get ups state, 
+	get usb disk info,
+	umount usb disk,
+	get disks usage, 
+	get nfs shares,
+	get or set ftp state,
+	shutdown and restart system
 </pre>
-</div>
-
 <pre>
 OUTPUT EXAMPLE:
 
@@ -72,7 +80,7 @@ DISKS:	2
   Used: 81%
 
 DOWNLOADS: 1
- Download	2%	479 KBps		debian-6.0.4-i386-CD-1.iso
+ Download	2%	479 KBps  example-file.iso
 
 TEMPERATURE:	46°C
 DATE-TIME:	18/3/2012, 0:2:48
@@ -98,5 +106,22 @@ NFS: On
  Volume_1: Volume_1		*,rw,recycle
 
 </pre>
+</div>
+<hr />
+    <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'labs-easyblog-it'; // required: replace example with your forum shortname
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+    <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+    
 </body>
 </html>

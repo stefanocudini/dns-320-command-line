@@ -12,7 +12,7 @@ requirements: php5-cli,	recommends: php5-curl
 ************************************************/
 
 define('DEBUG', false);
-		
+
 $options = array(
 		'p::'=> 'p2p::',
 		'c'  => 'p2p-clear',
@@ -43,10 +43,10 @@ $options = array(
 
 define('HELP',"
 
-Usage: pulse options [host[:port]]
+Usage: pulse [OPTIONS] [HOST[:PORT]]
 
-       host                        hostname or ip target, default: pulse
-       port                        http port number, default: 80
+       HOST                        hostname or ip target, default: pulse
+       PORT                        http port number, default: 80
 
 OPTIONS:
        -p,--p2p[=on|off]           get or set p2p client state
@@ -75,6 +75,9 @@ OPTIONS:
        -f,--force                  force execute of comfirm command
        -q,--quiet                  quiet mode, suppress output
        -h,--help                   print this help
+
+See also:
+	http://labs.easyblog.it/dns-320-command-line/
 
 ");
 
