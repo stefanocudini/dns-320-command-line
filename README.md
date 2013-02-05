@@ -25,10 +25,12 @@ get or set ftp state,
 shutdown and restart system
 
 ```
-Usage: pulse.php options [host[:port]]
+
+Usage: pulse options [host[:port]]
 
        host                        hostname or ip target, default: pulse
-       port                        port number for host, default: 80
+       port                        http port number, default: 80
+
 OPTIONS:
        -p,--p2p[=on|off]           get or set p2p client state
        -c,--p2p-clear              clear p2p complete list
@@ -42,10 +44,10 @@ OPTIONS:
        -L,--download-list[=file]   add urls from file list
        -N,--nfs[=on|off]           get or set nfs service
        -F,--ftp[=on|off]           get or set ftp service
-       -t,--temp                   get temperature inside
-       -T,--time                   get date and time of nas
+       -T,--temperature            get temperature inside device
        -A,--fan[=off|low|high]     get or set fan mode
        -u,--ups                    get ups state
+       -t,--time                   get date and time of nas       
        -U,--usb                    get usb disk/flash info
        -M,--usb-umount             umount usb disk/flash
        -d,--disks                  get disks usage
@@ -56,4 +58,5 @@ OPTIONS:
        -f,--force                  force execute of comfirm command
        -q,--quiet                  quiet mode, suppress output
        -h,--help                   print this help
+
 ```

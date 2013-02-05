@@ -26,10 +26,10 @@ $options = array(
 		'L:' => 'download-list:',
 		'N::'=> 'nfs::',
 		'F::'=> 'ftp::',
-		't'  => 'temp',
-		'T'  => 'time',
+		'T'  => 'temperature',
 		'A::'=> 'fan::',
 		'u'  => 'ups',
+		't'  => 'time',		
 		'U'  => 'usb',
 		'M'  => 'usb-umount',		
 		'd'  => 'disks',
@@ -43,10 +43,11 @@ $options = array(
 
 define('HELP',"
 
-Usage: pulse.php options [host[:port]]
+Usage: pulse options [host[:port]]
 
        host                        hostname or ip target, default: pulse
-       port                        port number for host, default: 80
+       port                        http port number, default: 80
+
 OPTIONS:
        -p,--p2p[=on|off]           get or set p2p client state
        -c,--p2p-clear              clear p2p complete list
@@ -60,10 +61,10 @@ OPTIONS:
        -L,--download-list[=file]   add urls from file list
        -N,--nfs[=on|off]           get or set nfs service
        -F,--ftp[=on|off]           get or set ftp service
-       -t,--temp                   get temperature inside
-       -T,--time                   get date and time of nas
+       -T,--temperature            get temperature inside device
        -A,--fan[=off|low|high]     get or set fan mode
        -u,--ups                    get ups state
+       -t,--time                   get date and time of nas       
        -U,--usb                    get usb disk/flash info
        -M,--usb-umount             umount usb disk/flash
        -d,--disks                  get disks usage
@@ -85,35 +86,39 @@ else
 debug(print_r(array('OPTIONS'=>$opts),true));
 
 $force = false;//force confirmation commands
-$quiet = false;//no verbose mode
+$quiet = false;//no print verbose mode
 
-$hostport = array_pop($argv);//last parameter
-if($argc>1 and $hostport{0}!='-')//if isn't option
+if($argc>1)
 {
-	if(!checkurl('http://'.$hostport.'/'))
-		die("ERROR HOST\n");
-	define('HOST', $hostport);
+	$lastarg = array_pop($argv);//last parameter
+	if($lastarg{0}!='-')//isn't a option
+	{
+		$hostport = $lastarg;
+		if(!checkhost($hostport))//isn't a host
+			errout("ERROR HOST");	
+		
+		define('HOST', $hostport);
+	}
 }
-else
-	define('HOST', 'pulse');
-
 
 if(count($opts)==0)
-	help();
+	errout(HELP);
 
+defined('HOST') or define('HOST', 'pulse');
 define('USER', 'admin');
 define('PASS', 'admin');
 
 define('DIRDOWN', 'Volume_1/downloads');//target path inside nas for http download
 define('DIRBASE', dirname(__FILE__).'/');//path of this script
-
-define('USECURL', in_array('curl',get_loaded_extensions()) );//check php5-curl is present
 define('CJAR', DIRBASE.'_cookies.txt');
+define('USECURL', in_array('curl',get_loaded_extensions()) );//check php5-curl is present
 define('UAGENT', "DNS-320 Command-line Interface (".(USECURL?'Curl':'Socket').')');
-define('TIMEOUT', 10);	//connection timeout
-define('SDELAY', 2);	//delay after post setconfig request, in seconds
 define('URLCGI', 'http://'.HOST.'/cgi-bin/');
 define('URLXML', 'http://'.HOST.'/xml/');
+define('TIMEOUT', 10);	//connection timeout
+define('SDELAY', 2);	//delay after post setconfig request, in seconds
+
+//	URLS
 
 $urls['login'] = URLCGI.'login_mgr.cgi';
 $params['loginSet'] = array(
@@ -311,12 +316,12 @@ $params['isoDelShare'] = array(
 
 ob_start();
 
-login() or die("ERROR LOGIN\n");
+login() or errout("ERROR LOGIN");
 
-foreach($opts as $opt=>$optval)
-{
-	switch($opt)
-	{
+foreach($opts as $opt=>$optval):
+
+	switch($opt):
+
 		case 'p':
 		case 'p2p':
 			$p2pConf = p2pInitConfig();
@@ -335,7 +340,7 @@ foreach($opts as $opt=>$optval)
 				break;
 			}
 			echo "P2P: On\n";
-		
+
 			$p2pSpeed = p2pGetSpeed();
 			echo " Speed:  ".$p2pSpeed['down']." KBps / ".$p2pSpeed['up']." KBps\n";
 			$p2pConf = p2pGetConfig();
@@ -466,7 +471,7 @@ foreach($opts as $opt=>$optval)
 		case 'download-list':
 			if(!file_exists($optval))
 			{
-				echo "ERROR FILE: ".$optval;
+				echo "ERROR URLS FILE: ".$optval;
 				break;
 			}
 			foreach(file($optval,FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES) as $url)
@@ -526,14 +531,14 @@ foreach($opts as $opt=>$optval)
 			echo "USB-DISK:\t".($u ? "Mounted\n" : 'Off');
 		break;
 		
-		case 't':
+		case 'T':
 		case 'temp':
-			echo "TEMP:\t".sysGetTemp().'°C';
+			echo "TEMPERATURE:\t".sysGetTemp().'°C';
 		break;
 
-		case 'T':
+		case 't':
 		case 'time':
-			echo "TIME:\t".sysGetTime();
+			echo "DATE-TIME:\t".sysGetTime();
 		break;
 		
 		case 'A':
@@ -619,15 +624,16 @@ foreach($opts as $opt=>$optval)
 		case 'help':
 		default:
 			help();
-	}
+	endswitch;
 	echo "\n";
-}
+endforeach;
 
 $OUT = ob_get_clean();
 
 if(!$quiet)
 	echo $OUT;
 
+exit(0);
 //end
 
 function debug($var)
@@ -637,9 +643,15 @@ function debug($var)
 		file_put_contents('php://stderr',$var."\n");
 }
 
-function checkurl($url)
+function errout($t)
 {
-	return (bool)@file_get_contents($url,0,NULL,0,1);
+	echo $t."\n";
+	exit(1);
+}
+
+function checkhost($hostport)
+{
+	return (bool)@file_get_contents('http://'.$hostport.'/',0,NULL,0,1);
 }
 
 function human2bytes($t)
@@ -671,7 +683,7 @@ function bytes2human($size)
 
 function help()
 {
-	die(HELP);
+	echo HELP;
 }
 
 function sysRestart()
