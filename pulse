@@ -497,7 +497,7 @@ foreach($opts as $opt=>$optval):
 			if(!empty($optval))
 				if(!downAddUrl($optval))
 				{
-					echo "ERROR URL: ".$optval;
+					echo "ERROR URL: ".$optval;//TODO print to stderr
 					break;
 				}
 			echo downPrintList();
@@ -516,7 +516,7 @@ foreach($opts as $opt=>$optval):
 		case 'download-list':
 			if(!file_exists($optval))
 			{
-				echo "ERROR URLS FILE: ".$optval;
+				echo "ERROR URLS FILE: ".$optval;//TODO print to stderr
 				break;
 			}
 			foreach(file($optval,FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES) as $url)
@@ -685,15 +685,15 @@ if(!$quiet)
 exit(0);
 //end
 
-function debug($var)
+function debug($t)
 {
 	if(DEBUG)
-		file_put_contents('php://stderr',$var."\n");
+		file_put_contents('php://stderr',$t."\n");
 }
 
 function errout($t)
 {
-	echo $t."\n";
+	file_put_contents('php://stderr',$t."\n");
 	exit(1);
 }
 
