@@ -2,6 +2,8 @@
 <?
 /*
 COMMAND-LINE INTERFACE for D-LINK Sharecenter DNS-320 Pulse
+http://labs.easyblog.it/dns-320-command-line/
+
 https://github.com/stefanocudini/dns-320-command-line
 https://bitbucket.org/zakis_/dns-320-command-line
 
@@ -86,7 +88,7 @@ if(version_compare(PHP_VERSION, '5.3.0', '<'))
 else
 	$opts = getopt(implode('',array_keys($options)),array_values($options));
 
-debug(print_r(array('OPTIONS'=>$opts),true));
+debug("FUNC:     ".__FUNCTION__."\n".print_r(array('OPTIONS'=>$opts),true));
 
 $force = false;//force confirmation commands
 $quiet = false;//no print verbose mode
@@ -320,6 +322,9 @@ $params['isoDelShare'] = array(
 ob_start();
 
 login() or errout("ERROR LOGIN");
+//
+//TODO limit login request only first time
+//
 
 foreach($opts as $opt=>$optval):
 
@@ -327,26 +332,40 @@ foreach($opts as $opt=>$optval):
 
 		case 'p':
 		case 'p2p':
-			$p2pConf = p2pInitConfig();
-			switch($optval)
+			$changed = false;
+			$p2pConf = p2pGetConfig();
+			p2pInitConfig($p2pConf);//run always before p2pSetConfig()
+			if(!empty($optval))
 			{
-				case 'on':
-					p2pSetConfig( array('on'=>true) );
-				break;
-				case 'off':
-					p2pSetConfig( array('on'=>false) );
-				break;
+				switch($optval)
+				{
+					case 'on':
+						if(!(bool)$p2pConf['p2p'])
+						{
+							p2pSetConfig( array('on'=>true) );
+							$changed=true;
+						}
+					break;
+					case 'off':
+						if((bool)$p2pConf['p2p'])
+						{
+							p2pSetConfig( array('on'=>false) );
+							$changed=true;
+						}
+					break;
+				}
 			}
-			if(!p2pCheckOn())//new p2pGetConfig()
+			
+			if($changed)
+				$p2pConf = p2pGetConfig();
+			if(!(bool)$p2pConf['p2p'])
 			{
 				echo "P2P: Off\n";
 				break;
 			}
 			echo "P2P: On\n";
-
 			$p2pSpeed = p2pGetSpeed();
 			echo " Speed:  ".$p2pSpeed['down']." KBps / ".$p2pSpeed['up']." KBps\n";
-			$p2pConf = p2pGetConfig();
 			echo " Limits: ".$p2pConf['bandwidth_downlaod_rate']." KBps / ".$p2pConf['bandwidth_upload_rate']." KBps\n";
 			echo " AutoDownload: ".($p2pConf['autodownload']?'On':'Off')."\n";			
 			echo p2pPrintList();
@@ -354,7 +373,8 @@ foreach($opts as $opt=>$optval):
 		
 		case 'c':
 		case 'p2p-clear':
-			if(!p2pCheckOn())
+			$p2pConf = p2pGetConfig();
+			if(!(bool)$p2pConf['p2p'])
 			{
 				echo "P2P: Off\n";
 				break;
@@ -367,31 +387,33 @@ foreach($opts as $opt=>$optval):
 		
 		case 'l':
 		case 'p2p-limit':
-			$p2pConf = p2pInitConfig();
-			if(!p2pCheckOn())
+			$p2pConf = p2pGetConfig();
+			p2pInitConfig($p2pConf);
+			if(!(bool)$p2pConf['p2p'])
 			{
 				echo "P2P: Off\n";
 				break;
 			}
 			echo "P2P: On\n";
-			
+		
 			list($down,$up) = @explode(',', strstr(',',$optval) ? $optval : $optval.',' );
-			
+		
 			if(!empty($down) or !empty($up))
 				p2pSetConfig( array('down'=>intval($down?$down:-1), 'up'=>intval($up?$up:-1)) );
-
+			
 			$p2pConf = p2pGetConfig();
 			echo " Limits: ".$p2pConf['bandwidth_downlaod_rate']." KBps / ".$p2pConf['bandwidth_upload_rate']." KBps\n";
 		break;
 		
 		case 'a':
 		case 'p2p-auto':
-			if(!p2pCheckOn())
+			$p2pConf = p2pGetConfig();
+			p2pInitConfig($p2pConf);
+			if(!(bool)$p2pConf['p2p'])
 			{
 				echo "P2P: Off\n";
 				break;
-			}
-			$p2pConf = p2pInitConfig();
+			}			
 			switch($optval)
 			{
 				case 'on':
@@ -407,7 +429,8 @@ foreach($opts as $opt=>$optval):
 		
 		case 's':
 		case 'p2p-start':
-			if(!p2pCheckOn())
+			$p2pConf = p2pGetConfig();
+			if(!(bool)$p2pConf['p2p'])
 			{
 				echo "P2P: Off\n";
 				break;
@@ -415,14 +438,20 @@ foreach($opts as $opt=>$optval):
 			$optvals = @explode(',', strstr(',',$optval) ? $optval : $optval.',' );
 			$pp = p2pGetList();
 			foreach($pp as $p)
+			{
 				if($optval=='' or in_array($p['id'],$optvals))
-					p2pStartFile($p['id']);			
+				{
+					if($p['status']=='stopped ')//with space
+						p2pStartFile($p['id']);
+				}
+			}
 			echo p2pPrintList();
 		break;		
 
 		case 'o':
 		case 'p2p-stop':
-			if(!p2pCheckOn())
+			$p2pConf = p2pGetConfig();
+			if(!(bool)$p2pConf['p2p'])
 			{
 				echo "P2P: Off\n";
 				break;
@@ -430,14 +459,20 @@ foreach($opts as $opt=>$optval):
 			$optvals = @explode(',', strstr(',',$optval) ? $optval : $optval.',' );
 			$pp = p2pGetList();
 			foreach($pp as $p)
+			{
 				if($optval=='' or in_array($p['id'],$optvals))
-					p2pStopFile($p['id']);
+				{
+					if($p['status']=='download')
+						p2pStopFile($p['id']);
+				}
+			}
 			echo p2pPrintList();
 		break;	
 		
 		case 'x':
 		case 'p2p-delete':
-			if(!p2pCheckOn())
+			$p2pConf = p2pGetConfig();
+			if(!(bool)$p2pConf['p2p'])
 			{
 				echo "P2P: Off\n";
 				break;
@@ -500,6 +535,7 @@ foreach($opts as $opt=>$optval):
 		
 		case 'F':
 		case 'ftp':
+			//TODO ftpInitConfig() similar p2pInitConfig()
 			switch($optval)
 			{
 				case 'on':
@@ -627,8 +663,11 @@ foreach($opts as $opt=>$optval):
 		case 'help':
 		default:
 			help();
+	
 	endswitch;
+	
 	echo "\n";
+	
 endforeach;
 
 $OUT = ob_get_clean();
@@ -641,8 +680,7 @@ exit(0);
 
 function debug($var)
 {
-	global $debug;
-	if(DEBUG or $debug)
+	if(DEBUG)
 		file_put_contents('php://stderr',$var."\n");
 }
 
@@ -824,18 +862,24 @@ function diskGetInfo()
 	return $sys;
 }
 
-function p2pCheckOn()
-{
-	$p2pConf = p2pGetConfig();
-	return  (bool)$p2pConf['p2p'];
-}
 
-function p2pInitConfig()
+function p2pInitConfig($c)//reset $params['p2pSetConfig'] with actual options
 {
-	global $urls;
 	global $params;	
-/*
-    [result] => 1
+	$params['p2pSetConfig'] = array(
+		'f_P2P'=> $c['p2p'],
+		'f_auto_download'=> $c['autodownload'],
+		'f_port_custom'=> $c['p2p']?'true':'false',
+		'f_seed_type'=> $c['seeding'],
+		'f_encryption'=> $c['encryption'],
+		'f_flow_control_schedule_max_download_rate'=> $c['bandwidth_downlaod_rate'],
+		'f_flow_control_schedule_max_upload_rate'=> $c['bandwidth_upload_rate'],
+		'f_bandwidth_auto'=> 'false',
+		'f_flow_control_schedule'=>$c['flow_control'],#str_repeat('1',168),
+		'cmd'=>'p2p_set_config',
+		'tmp_p2p_state'=>''
+	);
+/*  [result] => 1
     [p2p] => 1
     [port] => true
     [port_number] => 6881
@@ -851,21 +895,7 @@ function p2pInitConfig()
     [flow_control_download_rate] => -1
     [flow_control_upload_rate] => -1
     [flow_control] => 111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
-*/
-	$c = p2pGetConfig();
-	return $params['p2pSetConfig'] = array(
-		'f_P2P'=> $c['p2p'],
-		'f_auto_download'=> $c['autodownload'],
-		'f_port_custom'=> $c['p2p']?'true':'false',
-		'f_seed_type'=> $c['seeding'],
-		'f_encryption'=> $c['encryption'],
-		'f_flow_control_schedule_max_download_rate'=> $c['bandwidth_downlaod_rate'],
-		'f_flow_control_schedule_max_upload_rate'=> $c['bandwidth_upload_rate'],
-		'f_bandwidth_auto'=> 'false',
-		'f_flow_control_schedule'=>$c['flow_control'],#str_repeat('1',168),
-		'cmd'=>'p2p_set_config',
-		'tmp_p2p_state'=>''
-	);
+*/	
 }
 
 function p2pGetConfig()
@@ -885,7 +915,7 @@ function p2pSetConfig($sets=array())
 	if(isset($sets['up']))   $params['p2pSetConfig']['f_flow_control_schedule_max_upload_rate']= $sets['up'];
 	if(isset($sets['auto'])) $params['p2pSetConfig']['f_auto_download']= $sets['auto'] ? 1:0;
 	
-	debug(print_r(array('p2pSetConfig'=>$params['p2pSetConfig']),true));
+	debug("FUNC:     ".__FUNCTION__."\n".print_r(array('p2pSetConfig'=>$params['p2pSetConfig']),true));
 	
 	http_post_request($urls['p2p'],$params['p2pSetConfig']);
 	sleep(SDELAY);
@@ -1126,7 +1156,7 @@ function ftpSetConfig($sets=array())
 	
 	if(isset($sets['on'])) $params['ftpSetConfig']['f_state']= $sets['on'] ? 1:0;
 
-	debug(print_r(array('ftpSetConfig'=>$params['ftpSetConfig']),true));
+	debug("FUNC:     ".__FUNCTION__."\n".print_r(array('ftpSetConfig'=>$params['ftpSetConfig']),true));
 		
 	http_post_request($urls['ftp'],$params['ftpSetConfig']);
 	sleep(SDELAY);
@@ -1141,10 +1171,9 @@ function login()		//LOGIN
 	global $params;
 
 	list($head,$body) = http_post_request($urls['login'], $params['loginSet'], true);
-	debug(print_r(array('LOGIN'=>$head),true));
-//login conditions:
-//RESP OK: "Set-Cookie:username=admin; path=/"
-//RESP ERROR: "Location:http://host/web/relogin.html"
+	//login conditions:
+	//RESP OK: "Set-Cookie:username=admin; path=/"
+	//RESP ERROR: "Location:http://host/web/relogin.html"
 	return (isset($head['Set-Cookie']) and strstr($head['Set-Cookie'],'username='.USER) );
 }
 
@@ -1154,7 +1183,7 @@ function logout()		//LOGOUT
 	global $params;
 
 	list($head,$body) = http_post_request($urls['login'], $params['loginLogout'], true);
-	debug(print_r(array('LOGOUT'=>$head),true));
+	debug("FUNC:     ".__FUNCTION__."\n".print_r(array('LOGOUT'=>$head),true));
 	return (isset($head['Set-Cookie']) and strstr($head['Set-Cookie'],'username='.USER) );
 }
 
@@ -1309,6 +1338,7 @@ function http_post_request($url, $pdata=null, $getHeaders=false)
 
 function http_post_requestSock($url, $pdata=null, $getHeaders=false)//without Follow Location implementation
 {
+	static $num=0;
 #	$url .= '?dd';
 	$isget = parse_url($url,PHP_URL_QUERY) ? true : false;//if contain get parameters, then is get request
 
@@ -1368,17 +1398,18 @@ function http_post_requestSock($url, $pdata=null, $getHeaders=false)//without Fo
 
 	$resp = $getHeaders ? array($head, $body) : $body;
 	
-	debug(#"URL:    ".$url."\n".
-		  "REQUEST: ".implode("\n".
-		  "         ",$reqRows)."\n".
-		  "POST:    ".$pdata."\n\n".
+	debug(++$num.")\n".
+		  "REQUEST:  ".implode("\n".
+		  "          ",$reqRows)."\n".
+		  "          ".$pdata."\n\n".
 		  "RESPONSE: ".implode("\n".
-		  "          ",$resRows));
+		  "          ",$resRows), __FUNCTION__);
 	return $resp; 
 } 
 
 function http_post_requestCurl($url, $pdata=null, $getHeaders=false)
 {
+	static $num=0;
 //	$url .= '?dd';
 	$isget = parse_url($url,PHP_URL_QUERY) ? true : false;//if contain get parameters, then is get request
 	
@@ -1427,10 +1458,11 @@ function http_post_requestCurl($url, $pdata=null, $getHeaders=false)
 
 	$resp = $getHeaders ? array($head, $body) : $body;
 
-	debug(#"URL:    ".$url."\n".
-		  "REQUEST: ".implode("\n".
-		  "         ",$reqRows)."\n".
-		  "POST:    ".$pdata."\n\n".
+	debug('['.(++$num)."]\n".
+		  "FUNC:     ".__FUNCTION__."\n".
+		  "REQUEST:  ".implode("\n".
+		  "          ",$reqRows)."\n".
+		  "          ".$pdata."\n\n".
 		  "RESPONSE: ".implode("\n".
 		  "          ",$resRows));
 
