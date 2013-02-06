@@ -356,6 +356,8 @@ foreach($opts as $opt=>$optval):
 				}
 			}
 			
+			if($quiet) break;
+
 			if($changed)
 				$p2pConf = p2pGetConfig();
 			if(!(bool)$p2pConf['p2p'])
@@ -382,6 +384,7 @@ foreach($opts as $opt=>$optval):
 			echo "P2P: On\n";
 			
 			p2pClearList();
+			if($quiet) break;
 			echo p2pPrintList();
 		break;
 		
@@ -423,6 +426,7 @@ foreach($opts as $opt=>$optval):
 					p2pSetConfig( array('auto'=>false) );
 				break;
 			}
+			if($quiet) break;
 			$p2pConf = p2pGetConfig();
 			echo " AutoDownload: ".($p2pConf['autodownload']?'On':'Off')."\n";
 		break;	
@@ -445,6 +449,7 @@ foreach($opts as $opt=>$optval):
 						p2pStartFile($p['id']);
 				}
 			}
+			if($quiet) break;
 			echo p2pPrintList();
 		break;		
 
@@ -466,6 +471,7 @@ foreach($opts as $opt=>$optval):
 						p2pStopFile($p['id']);
 				}
 			}
+			if($quiet) break;			
 			echo p2pPrintList();
 		break;	
 		
@@ -482,6 +488,7 @@ foreach($opts as $opt=>$optval):
 			foreach($pp as $p)
 				if(in_array($p['id'],$optvals))//remove only specific torrent id, never all in one time
 					p2pDelFile($p['id']);
+			if($quiet) break;
 			echo p2pPrintList();
 		break;	
 		
