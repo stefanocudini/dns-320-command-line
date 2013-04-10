@@ -1,0 +1,2 @@
+*/5 * * * * /ffp/home/root/p2p_manager.sh >> /ffp/home/root/p2p_manager.log 2>&1
+
