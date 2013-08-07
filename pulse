@@ -334,7 +334,7 @@ foreach($opts as $opt=>$optval):
 		case 'p2p':
 			$changed = false;
 			$p2pConf = p2pGetConfig();
-			p2pInitConfig($p2pConf);//run always before p2pSetConfig()
+			p2pInitConfig($p2pConf);//run always before p2pSetConfig()			
 			if(!empty($optval))
 			{
 				switch($optval)
@@ -368,7 +368,7 @@ foreach($opts as $opt=>$optval):
 			echo "P2P: On\n";
 			$p2pSpeed = p2pGetSpeed();
 			echo " Speed:  ".$p2pSpeed['down']." KBps / ".$p2pSpeed['up']." KBps\n";
-			echo " Limits: ".$p2pConf['bandwidth_downlaod_rate']." KBps / ".$p2pConf['bandwidth_upload_rate']." KBps\n";
+			echo " Limits: ".$p2pConf['flow_control_download_rate']." KBps / ".$p2pConf['flow_control_upload_rate']." KBps\n";
 			echo " AutoDownload: ".($p2pConf['autodownload']?'On':'Off')."\n";			
 			echo p2pPrintList();
 		break;
@@ -405,7 +405,7 @@ foreach($opts as $opt=>$optval):
 				p2pSetConfig( array('down'=>intval($down?$down:-1), 'up'=>intval($up?$up:-1)) );
 			
 			$p2pConf = p2pGetConfig();
-			echo " Limits: ".$p2pConf['bandwidth_downlaod_rate']." KBps / ".$p2pConf['bandwidth_upload_rate']." KBps\n";
+			echo " Limits: ".$p2pConf['flow_control_download_rate']." KBps / ".$p2pConf['flow_control_upload_rate']." KBps\n";
 		break;
 		
 		case 'a':
@@ -879,8 +879,8 @@ function p2pInitConfig($c)//reset $params['p2pSetConfig'] with actual options
 		'f_port_custom'=> $c['p2p']?'true':'false',
 		'f_seed_type'=> $c['seeding'],
 		'f_encryption'=> $c['encryption'],
-		'f_flow_control_schedule_max_download_rate'=> $c['bandwidth_downlaod_rate'],
-		'f_flow_control_schedule_max_upload_rate'=> $c['bandwidth_upload_rate'],
+		'f_flow_control_schedule_max_download_rate'=> $c['flow_control_download_rate'],
+		'f_flow_control_schedule_max_upload_rate'=> $c['flow_control_upload_rate'],
 		'f_bandwidth_auto'=> 'false',
 		'f_flow_control_schedule'=>$c['flow_control'],#str_repeat('1',168),
 		'cmd'=>'p2p_set_config',
@@ -910,6 +910,12 @@ function p2pGetConfig()
 	global $urls;
 	global $params;
 	$c = xml2array( http_post_request($urls['p2p'],$params['p2pGetConfig']) );
+	
+	#patch in xml config!
+	$tmpDownRate = $c['flow_control_download_rate'];
+	$c['flow_control_download_rate'] = $c['flow_control_upload_rate'];
+	$c['flow_control_upload_rate'] = $tmpDownRate;
+	
 	return $c;
 }
 
