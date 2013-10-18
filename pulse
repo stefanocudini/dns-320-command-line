@@ -40,7 +40,8 @@ $options = array(
 		'R'  => 'restart',
 		'O'  => 'logout',		
 		'f'  => 'force',
-		'q'  => 'quiet',		
+		'q'  => 'quiet',
+		'v'  => 'verbose',	
 		'h'  => 'help');
 
 define('HELP',"
@@ -76,6 +77,7 @@ OPTIONS:
        -O,--logout                 logout user admin from current host
        -f,--force                  force execute of comfirm command
        -q,--quiet                  quiet mode, suppress output
+       -v,--verbose                verbose mode, full lenght in filenames
        -h,--help                   print this help
 
 See also:
@@ -90,8 +92,9 @@ else
 
 debug("FUNC:     ".__FUNCTION__."\n".print_r(array('OPTIONS'=>$opts),true));
 
-$force = false;//force confirmation commands
-$quiet = false;//no print verbose mode
+$force   = false;//force confirmation commands
+$quiet   = false;//no print debug outputs
+$verbose = false;//full string length
 
 if($argc>1)
 {
@@ -661,6 +664,11 @@ foreach($opts as $opt=>$optval):
 			$force = true;
 		break;
 
+		case 'v':
+		case 'verbose':
+			$verbose = true;
+		break;
+
 		case 'q':
 		case 'quiet':
 			$quiet = true;
@@ -962,6 +970,7 @@ function p2pGetList()
 {
 	global $urls;
 	global $params;
+	global $verbose;
 
 	$jj = http_post_request($urls['p2p'],$params['p2pGetList']);
 	$jj = preg_replace('/:\s*\'(([^\']|\\\\\')*)\'\s*([},])/e',
@@ -990,7 +999,7 @@ function p2pGetList()
 		$P[]= array('progress'=> $perc,
 					'status'=>   $s,
 					'speed'=>    $p[5],
-					'file'=>     substrStrip($f[1], 40),
+					'file'=>     $verbose ? $f[1] : substrStrip($f[1], 40),
 					'size-tot'=> $size_tot,
 					'size-com'=> $size_com,
 					'id'=>       $p[7]);
@@ -1008,10 +1017,12 @@ function p2pGetList()
 
 function p2pPrintList()
 {
+	global $verbose;
 	$pp = p2pGetList();	
 	$out = " Torrents: ".count($pp)."\n";
+	$sep = $verbose ? ' ' : "\t";
 	foreach($pp as $p)
-		$out .= '  #'.$p['id']."\t".ucwords($p['status'])."\t".$p['progress']."%\t(".$p['size-com']." of ".$p['size-tot'].")\t".$p['speed']."\t".basename($p['file'])."\n";
+		$out .= '  #'.$p['id'].$sep.ucwords($p['status']).$sep.$p['progress']."%".$sep."(".$p['size-com']." of ".$p['size-tot'].")".$sep.$p['speed'].$sep.basename($p['file'])."\n";
 	return $out;
 }
 
