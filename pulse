@@ -136,7 +136,7 @@ $params['loginSet'] = array(
 	'port'=>'',
 	'f_type'=>1,
 	'f_username'=>'',
-	'pre_pwd'=>USER,
+	'pre_pwd'=>PASS,
 	'C1'=>'ON',
 	'ssl_port'=>443
 );
