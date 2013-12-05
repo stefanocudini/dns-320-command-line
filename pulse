@@ -12,6 +12,9 @@ stefano.cudini@gmail.com
 
 requirements: php5-cli,	recommends: php5-curl
 ************************************************/
+define('HOST', 'pulse');	//hostname or ip of your NAS
+define('USER', 'admin');
+define('PASS', 'admin');
 
 define('DEBUG', false);
 
@@ -111,10 +114,6 @@ if($argc>1)
 
 if(count($opts)==0)
 	errout(HELP);
-
-defined('HOST') or define('HOST', 'pulse');
-define('USER', 'admin');
-define('PASS', 'admin');
 
 define('DIRDOWN', 'Volume_1/downloads');//target path inside nas for http download
 define('DIRBASE', dirname(__FILE__).'/');//path of this script
