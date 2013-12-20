@@ -1441,6 +1441,15 @@ function http_post_requestCurl($url, $pdata=null, $getHeaders=false)
 	$encPass = textToBase64(encRC4(USER,PASS));//view /web/pages/function/rc4.js
 	$cookie = 'username='.USER.'; rembMe=checked; uname='.USER.'; password='.$encPass;#.'; path=/';
 
+        // source login.html (DNS320B hw B1 firm v1.01b)
+        // ...omissis...
+        // document.form.pwd.value = Base64.encode($('#pwd').val() );
+        // document.form.submit...
+
+        $encPass = base64_encode(PASS);
+        $pdata=str_replace('&pwd='.PASS, '&pwd='.$encPass, $pdata);
+        // end
+
 	$ch = curl_init();
 	curl_setopt($ch, CURLOPT_URL, $url );
 	if(!$isget)//switch to GET request
