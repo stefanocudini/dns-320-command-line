@@ -509,7 +509,7 @@ foreach($opts as $opt=>$optval):
 		case 'download-clear':
 			$dd = downGetList();
 			foreach($dd as $d)
-				if($d['status']=='complete' or $d['status']=='failed')
+				if($d['status']=='comp' or $d['status']=='fail')
 					downDelUrl($d['id']);
 			echo downPrintList();
 		break;
@@ -983,9 +983,9 @@ function p2pGetList()
 	foreach($pp['rows'] as $pc)
 	{
 		$p = $pc['cell'];
-		if(strstr($p[4],'status_download'))   $s = 'download';
-		elseif(strstr($p[4],'status_queue'))  $s = 'stopped ';
-		elseif(strstr($p[4],'status_upload')) $s = 'complete';
+		if(strstr($p[4],'status_download'))   $s = 'down';
+		elseif(strstr($p[4],'status_queue'))  $s = 'stop';
+		elseif(strstr($p[4],'status_upload')) $s = 'comp';
 		
 		preg_match("/.*>(.*)<.*/", $p[0], $f);//file
 		preg_match("/.*>(.*)<.*/", $p[3], $g);//progress
@@ -998,7 +998,7 @@ function p2pGetList()
 		$P[]= array('progress'=> $perc,
 					'status'=>   $s,
 					'speed'=>    $p[5],
-					'file'=>     $verbose ? $f[1] : substrStrip($f[1], 40),
+					'file'=>     $verbose ? $f[1] : substrStrip($f[1], 50),
 					'size-tot'=> $size_tot,
 					'size-com'=> $size_com,
 					'id'=>       $p[7]);
@@ -1021,7 +1021,7 @@ function p2pPrintList()
 	$out = " Torrents: ".count($pp)."\n";
 	$sep = $verbose ? ' ' : "\t";
 	foreach($pp as $p)
-		$out .= '  #'.$p['id'].$sep.ucwords($p['status']).$sep.$p['progress']."%".$sep."(".$p['size-com']." of ".$p['size-tot'].")".$sep.$p['speed'].$sep.basename($p['file'])."\n";
+		$out .= '  '.ucwords($p['status']).$sep.$p['progress']."%".$sep."(".$p['size-com']." of ".$p['size-tot'].")".$sep.$p['speed'].$sep.'#'.$p['id'].$sep.basename($p['file'])."\n";
 	return $out;
 }
 
@@ -1081,10 +1081,10 @@ function downGetList()
 	foreach($rows as $U)
 	{
 		$u = $U['cell'];
-		if(strstr($u[3],'status_download')) $s = 'download';
-		elseif(strstr($u[3],'icon_stop'))   $s = 'stopped';
-		elseif(strstr($u[3],'status_fail')) $s = 'failed';
-		elseif(strstr($u[3],'status_ok'))   $s = 'complete';
+		if(strstr($u[3],'status_download')) $s = 'down';
+		elseif(strstr($u[3],'icon_stop'))   $s = 'stop';
+		elseif(strstr($u[3],'status_fail')) $s = 'fail';
+		elseif(strstr($u[3],'status_ok'))   $s = 'comp';
 	
 		preg_match("/.*>(.*)<.*/", $u[2], $p);
 		$L[]= array('progress'=> $p[1].'%',
@@ -1446,8 +1446,8 @@ function http_post_requestCurl($url, $pdata=null, $getHeaders=false)
         // document.form.pwd.value = Base64.encode($('#pwd').val() );
         // document.form.submit...
 
-        $encPass = base64_encode(PASS);
-        $pdata=str_replace('&pwd='.PASS, '&pwd='.$encPass, $pdata);
+        #$encPass = base64_encode(PASS);
+        #$pdata=str_replace('&pwd='.PASS, '&pwd='.$encPass, $pdata);
         // end
 
 	$ch = curl_init();
