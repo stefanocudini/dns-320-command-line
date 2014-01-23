@@ -124,6 +124,9 @@ define('URLCGI', 'http://'.HOST.'/cgi-bin/');
 define('URLXML', 'http://'.HOST.'/xml/');
 define('TIMEOUT', 10);	//connection timeout
 define('SDELAY', 2);	//delay after post setconfig request, in seconds
+preg_match_all("/rows.([0-9]+);.columns.([0-9]+);/", strtolower(exec('stty -a |grep columns')), $o);
+define('DISPLAY_H', (int)$o[1][0] );
+define('DISPLAY_W', ((int)$o[2][0])-25 );
 
 //	URLS
 
@@ -993,12 +996,12 @@ function p2pGetList()
 		$size_tot = $p[2];
 		$tot = human2bytes($size_tot);
 		$size_com = bytes2human(($tot/100)*$perc);
-
-//TODO time remain
+		$speeds = array_map('trim', explode('/', str_replace('KBps','',$p[5]) ));
 		$P[]= array('progress'=> $perc,
 					'status'=>   $s,
-					'speed'=>    $p[5],
-					'file'=>     $verbose ? $f[1] : substrStrip($f[1], 50),
+					'speed-d'=>  $speeds[0],
+					'speed-u'=>  $speeds[1],
+					'file'=>     $f[1],
 					'size-tot'=> $size_tot,
 					'size-com'=> $size_com,
 					'id'=>       $p[7]);
@@ -1019,9 +1022,32 @@ function p2pPrintList()
 	global $verbose;
 	$pp = p2pGetList();	
 	$out = " Torrents: ".count($pp)."\n";
-	$sep = $verbose ? ' ' : "\t";
+	$minw = 3;
+	$pw = array(
+		'status'   => 3,
+		'progress' => 3,
+		'size-com' => 8,
+		'size-tot' => 7, 
+		'speed-d'  => 5,
+		'speed-u'  => 9,
+		'id'       => 3
+	);	//percentage widths
+	$pw['file'] = floor(DISPLAY_W-array_sum($pw) );
+
+	$sep = '  ';
+
 	foreach($pp as $p)
-		$out .= '  '.ucwords($p['status']).$sep.$p['progress']."%".$sep."(".$p['size-com']." of ".$p['size-tot'].")".$sep.$p['speed'].$sep.'#'.$p['id'].$sep.basename($p['file'])."\n";
+		$out .= $sep.
+			str_pad(ucwords($p['status']), $pw['status']).$sep.
+			str_pad($p['progress'].'%', $pw['progress']).$sep.
+			str_pad($p['size-com'], $pw['size-com'],' ',STR_PAD_LEFT).' of '.
+			str_pad($p['size-tot'], $pw['size-tot']).$sep.
+			str_pad($p['speed-d'], $pw['speed-d'],' ',STR_PAD_LEFT).' / '.
+			str_pad($p['speed-u'].' KBps', $pw['speed-u']).$sep.
+			str_pad('#'.$p['id'], $pw['id']).$sep.
+			str_pad(substrStrip($p['file'],$pw['file']), $pw['file']).
+			"\n";
+
 	return $out;
 }
 
@@ -1233,7 +1259,7 @@ function bytesConvert($bytes)
 
 function substrStrip($string, $length=NULL)
 {
-	if($length==NULL)
+	if($length===NULL)
 		$length = 50;
 	$stringDisplay = substr($string, 0, $length);
 	if(strlen($string) > $length)
