@@ -986,9 +986,9 @@ function p2pGetList()
 	foreach($pp['rows'] as $pc)
 	{
 		$p = $pc['cell'];
-		if(strstr($p[4],'status_download'))   $s = 'down';
-		elseif(strstr($p[4],'status_queue'))  $s = 'stop';
-		elseif(strstr($p[4],'status_upload')) $s = 'comp';
+		if(strstr($p[4],'status_download'))   $s = 'download';
+		elseif(strstr($p[4],'status_queue'))  $s = 'stopped ';
+		elseif(strstr($p[4],'status_upload')) $s = 'complete';
 		
 		preg_match("/.*>(.*)<.*/", $p[0], $f);//file
 		preg_match("/.*>(.*)<.*/", $p[3], $g);//progress
@@ -1024,7 +1024,7 @@ function p2pPrintList()
 	$out = " Torrents: ".count($pp)."\n";
 	$minw = 3;
 	$pw = array(
-		'status'   => 3,
+		'status'   => 8,
 		'progress' => 3,
 		'size-com' => 8,
 		'size-tot' => 7, 
@@ -1107,10 +1107,10 @@ function downGetList()
 	foreach($rows as $U)
 	{
 		$u = $U['cell'];
-		if(strstr($u[3],'status_download')) $s = 'down';
-		elseif(strstr($u[3],'icon_stop'))   $s = 'stop';
-		elseif(strstr($u[3],'status_fail')) $s = 'fail';
-		elseif(strstr($u[3],'status_ok'))   $s = 'comp';
+		if(strstr($u[3],'status_download')) $s = 'download';
+		elseif(strstr($u[3],'icon_stop'))   $s = 'stopped ';
+		elseif(strstr($u[3],'status_fail')) $s = 'failed  ';
+		elseif(strstr($u[3],'status_ok'))   $s = 'complete';
 	
 		preg_match("/.*>(.*)<.*/", $u[2], $p);
 		$L[]= array('progress'=> $p[1].'%',
