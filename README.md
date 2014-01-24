@@ -1,28 +1,23 @@
-SIMPLE COMMAND-LINE INTERFACE for D-LINK SHARECENTER DNS-320
+#COMMAND-LINE INTERFACE for D-LINK SHARECENTER DNS-320
+![Image](https://raw2.github.com/stefanocudini/dns-320-command-line/master/dns-320-pulse.png)
 
 Copyleft Stefano Cudini 2012
+
 stefano.cudini@gmail.com
 
-requirements:
-php5-cli
-recommends:
-php5-curl
+[labs.easyblog.it](http://labs.easyblog.it/dns-320-command-line/)
 
-Some features:
-get or set p2p client state, 
-clear p2p complete list, 
-list or add url in http downloader, 
-download multiple urls from file list,
-clear complete http downloads list, 
-get temperature, 
-get or set fan mode, 
-get ups state, 
-get usb disk info,
-umount usb disk,
-get disks usage, 
-get nfs shares,
-get or set ftp state,
-shutdown and restart system
+**Suggestions:**
+
+This script is designed to run on a remote host than your NAS, but enabling ssh access to the NAS, eg using [Fun Plug](http://dns323.kood.org/howto:ffp), you can copy the script into the NAS and run it from the command line via ssh or crond
+
+**Requirements:**
+* php5-cli
+
+**Recommends:**
+* php5-curl
+
+**Usage**
 
 ```
 
@@ -59,4 +54,21 @@ OPTIONS:
        -q,--quiet                  quiet mode, suppress output
        -h,--help                   print this help
 
+```
+
+**Output example p2p list:**
+```
+$ ./pulse -p
+	P2P: On
+	 Speed:  64.2 KBps / 46.5 KBps
+	 Limits: -1 KBps / 20 KBps
+	 AutoDownload: Off
+	 Torrents: 7
+	  Download  38%   251.5MB of 661.9MB    0.0 / 1.6 KBps   #7  Elephants Dream BDRip...
+	  Stopped   34%   138.6MB of 407.7MB    0.0 / 0.0 KBps   #5  Kubuntu Linux.iso 64b...
+	  Stopped   29%      47MB of 1.45GB     0.0 / 0.0 KBps   #4  Sintel 2010 1080p Xvi...
+	  Stopped   15%   261.1MB of 1.7GB      0.0 / 0.0 KBps   #1  PBig Buck Bunny 720p ...
+	  Download  10%   153.6MB of 1.5GB     24.3 / 37.0 KBps  #3  Debian 6 0 i386 - CD1...
+	  Download  5%     24.4MB of 658.0MB   37.8 / 1.2 KBps   #2  Debian 6 0 i386 - CD2...
+	  Stopped   0%         0B of 710.0MB    0.0 / 0.0 KBps   #6  Debian 6 0 i386 - CD3...
 ```
