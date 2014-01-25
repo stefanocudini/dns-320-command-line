@@ -739,6 +739,51 @@ function bytes2human($size)
     return round($size, 1).$units[$i];
 }
 
+function remainTime($bytes, $speed)
+{
+	return $speed>0 ? (int)$bytes/$speed : 0;
+}
+
+function sec2human($sec, $sep='')
+{
+  	$time = intval($sec);
+
+	$vals = array();
+	
+    if($time >= 86400){
+		$v = floor($time/86400);
+		$k = $v>1 ? 'd' : 'd';
+		$vals[$k] = $v;
+		$time = ($time%86400);
+    }
+    if($time >= 3600){
+    	$v = floor($time/3600);
+		$k = $v>1 ? 'h' : 'h';
+		$vals[$k] = $v;
+		$time = ($time%3600);
+    }
+    if($time >= 60){
+    	$v = floor($time/60);
+		$k = $v>1 ? 'm' : 'm';
+		$vals[$k] = $v;
+		$time = ($time%60);
+    }
+    elseif($time >= 0){
+    	$v = floor($time);
+		$k = $v>1 ? 's' : 's';
+		$vals[$k] = $v;
+		$time = $time;
+    }
+
+	$at = array();
+	foreach($vals as $k=>$v)
+		if($v!=0)
+			$at[]= $v.$sep.$k;
+			
+	return implode(':',$at);
+}
+
+
 function help()
 {
 	echo HELP;
@@ -980,7 +1025,7 @@ function p2pGetList()
 	$jj = preg_replace("/([,\{])([a-zA-Z0-9_]+?):/" , "$1\"$2\":", $jj);
 	//correcting not standard JSON!! fuck!!
 	
-	$pp = json_decode($jj,true);	
+	$pp = json_decode($jj,true);
 
 	$P = array();
 	foreach($pp['rows'] as $pc)
@@ -993,26 +1038,30 @@ function p2pGetList()
 		preg_match("/.*>(.*)<.*/", $p[0], $f);//file
 		preg_match("/.*>(.*)<.*/", $p[3], $g);//progress
 		$perc = intval(trim($g[1]));
-		$size_tot = $p[2];
-		$tot = human2bytes($size_tot);
-		$size_com = bytes2human(($tot/100)*$perc);
+		$size_tot = (int)human2bytes($p[2]);
+		$size_com = (int)($size_tot/100)*$perc;
 		$speeds = array_map('trim', explode('/', str_replace('KBps','',$p[5]) ));
-		$P[]= array('progress'=> $perc,
-					'status'=>   $s,
-					'speed-d'=>  $speeds[0],
-					'speed-u'=>  $speeds[1],
-					'file'=>     $f[1],
-					'size-tot'=> $size_tot,
-					'size-com'=> $size_com,
-					'id'=>       $p[7]);
+		
+		$remainTime = remainTime($size_tot-$size_com, $speeds[0]*1000);
+
+		$P[]= array('progress'=> (float)$perc,
+					'status'=>   (string)$s,
+					'speed-d'=>  (float)$speeds[0],
+					'speed-u'=>  (float)$speeds[1],
+					'remain'=>   (int)$remainTime,
+					'file'=>     (string)$f[1],
+					'size-tot'=> (int)$size_tot,
+					'size-com'=> (int)$size_com,
+					'id'=>       (int)$p[7]);
 	}
 	
 	if(count($P)==0) return array();
 
+	$sorted = array();
 	foreach($P as $k=>$r)
-		$progress[$k]= $r['progress'];
-		
-	array_multisort($progress, SORT_DESC, $P);
+		$sorted[$k]= $r['remain']>0 ? $r['remain'] : PHP_INT_MAX;
+
+	array_multisort($sorted, SORT_ASC, $P);
 
 	return $P;
 }
@@ -1030,24 +1079,36 @@ function p2pPrintList()
 		'size-tot' => 7, 
 		'speed-d'  => 5,
 		'speed-u'  => 9,
+		'remain'   => 8,
 		'id'       => 3
 	);	//percentage widths
-	$pw['file'] = floor(DISPLAY_W-array_sum($pw) );
+	$pw['file'] = floor(DISPLAY_W - array_sum($pw) );
 
 	$sep = '  ';
 
 	foreach($pp as $p)
+	{
+		$p['status'] = ucwords($p['status']);
+		$p['progress'] = $p['progress'].'%';
+		$p['size-com'] = bytes2human($p['size-com']);
+		$p['size-tot'] = bytes2human($p['size-tot']);
+		$p['remain'] = sec2human($p['remain']);
+		$p['speed-u'] = $p['speed-u'].' KBps';
+		$p['id'] = '#'.$p['id'];
+		$p['file'] = substrStrip($p['file'], $pw['file']);
+
 		$out .= $sep.
-			str_pad(ucwords($p['status']), $pw['status']).$sep.
-			str_pad($p['progress'].'%', $pw['progress']).$sep.
+			str_pad($p['status'],   $pw['status']).$sep.
+			str_pad($p['progress'], $pw['progress']).$sep.
 			str_pad($p['size-com'], $pw['size-com'],' ',STR_PAD_LEFT).' of '.
 			str_pad($p['size-tot'], $pw['size-tot']).$sep.
-			str_pad($p['speed-d'], $pw['speed-d'],' ',STR_PAD_LEFT).' / '.
-			str_pad($p['speed-u'].' KBps', $pw['speed-u']).$sep.
-			str_pad('#'.$p['id'], $pw['id']).$sep.
-			str_pad(substrStrip($p['file'],$pw['file']), $pw['file']).
+			str_pad($p['remain'],   $pw['remain']).$sep.
+			str_pad($p['speed-d'],  $pw['speed-d'],' ',STR_PAD_LEFT).' / '.
+			str_pad($p['speed-u'],  $pw['speed-u']).$sep.
+			str_pad($p['id'],       $pw['id']).$sep.
+			str_pad($p['file'],     $pw['file']).
 			"\n";
-
+	}
 	return $out;
 }
 
@@ -1251,10 +1312,10 @@ function xml2array($xml)
 
 function bytesConvert($bytes)
 {
-    $ext = array('B', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB');
-    $unitCount = 0;
-    for(; $bytes > 1024; $unitCount++) $bytes /= 1024;
-    return round($bytes,2).$ext[$unitCount];
+	$ext = array('B', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB');
+	$unitCount = 0;
+	for(; $bytes > 1024; $unitCount++) $bytes /= 1024;
+	return round($bytes,2).$ext[$unitCount];
 }
 
 function substrStrip($string, $length=NULL)
