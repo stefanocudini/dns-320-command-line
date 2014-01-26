@@ -1079,7 +1079,7 @@ function p2pPrintList()
 		'size-tot' => 7, 
 		'speed-d'  => 5,
 		'speed-u'  => 9,
-		'remain'   => 8,
+		'remain'   => 9,
 		'id'       => 3
 	);	//percentage widths
 	$pw['file'] = floor(DISPLAY_W - array_sum($pw) );
@@ -1092,7 +1092,7 @@ function p2pPrintList()
 		$p['progress'] = $p['progress'].'%';
 		$p['size-com'] = bytes2human($p['size-com']);
 		$p['size-tot'] = bytes2human($p['size-tot']);
-		$p['remain'] = sec2human($p['remain']);
+		$p['remain'] = $p['remain'] ? sec2human($p['remain']) : str_pad('-',9,' ',STR_PAD_BOTH);
 		$p['speed-u'] = $p['speed-u'].' KBps';
 		$p['id'] = '#'.$p['id'];
 		$p['file'] = substrStrip($p['file'], $pw['file']);
