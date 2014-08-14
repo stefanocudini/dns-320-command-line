@@ -1,6 +1,6 @@
 #COMMAND-LINE INTERFACE for D-LINK SHARECENTER DNS-320
 
-*Only for DLINK Firmware 2.03, help me to add support of new firmware 2.05*
+*Only for DLINK Firmware 2.03, help me to add support of new [firmware 2.05](https://github.com/stefanocudini/dns-320-command-line/issues/3)*
 
 ![Image](https://raw2.github.com/stefanocudini/dns-320-command-line/master/dns-320-pulse.png)
 
