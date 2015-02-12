@@ -35,7 +35,8 @@ $options = array(
 		'p::'=> 'p2p::',
 		'c'  => 'p2p-clear',
 		'l::'=> 'p2p-limit::',
-		'a::'=> 'p2p-auto::',		
+		'a::'=> 'p2p-auto::',
+		'b::'=> 'p2p-port::',
 		's::'=> 'p2p-start::',
 		'o::'=> 'p2p-stop::',
 		'x::'=> 'p2p-delete::',
@@ -47,17 +48,17 @@ $options = array(
 		'T'  => 'temperature',
 		'A::'=> 'fan::',
 		'u'  => 'ups',
-		't'  => 'time',		
+		't'  => 'time',
 		'U'  => 'usb',
-		'M'  => 'usb-umount',		
+		'M'  => 'usb-umount',
 		'd'  => 'disks',
 		'S'  => 'shutdown',
 		'P'  => 'shutdown-prog',
 		'R'  => 'restart',
-		'O'  => 'logout',		
+		'O'  => 'logout',
 		'f'  => 'force',
 		'q'  => 'quiet',
-		'v'  => 'verbose',	
+		'v'  => 'verbose',
 		'h'  => 'help');
 
 define('HELP',"
@@ -71,10 +72,11 @@ OPTIONS:
        -p,--p2p[=on|off]           get or set p2p client state
        -c,--p2p-clear              clear p2p complete list
        -l,--p2p-limit[=down[,up]]  get or set p2p speed limit, unlimit: -1
-       -a,--p2p-auto[=on|off]      get or set p2p automatic download       
+       -a,--p2p-auto[=on|off]      get or set p2p automatic download
+       -b,--p2p-port[=id,id,...]   get or set p2p torrent port       
        -s,--p2p-start[=id,id,...]  start all or specific torrent download
        -o,--p2p-stop[=id,id,...]   stop all or specific torrent download
-       -x,--p2p-delete[=id,id,...] delete specific torrent download       
+       -x,--p2p-delete[=id,id,...] delete specific torrent download
        -D,--download[=url]         list or add url in http downloader
        -C,--download-clear         clear complete http downloads list
        -L,--download-list[=file]   add urls from file list
@@ -97,7 +99,7 @@ OPTIONS:
        -h,--help                   print this help
 
 See also:
-	http://labs.easyblog.it/dns-320-command-line/
+       http://labs.easyblog.it/dns-320-command-line/
 
 ");
 
@@ -202,7 +204,8 @@ $params['p2pGetConfig'] = array('cmd'=>'p2p_get_setting_info');
 $params['p2pSetConfig'] = array(
 	'f_P2P'=>1,
 	'f_auto_download'=>1,
-	'f_port_custom'=>'true',
+	'f_port_custom'=>'false',
+	'f_port'=>57920,
 	'f_seed_type'=>0,
 	'f_encryption'=>1,
 	'f_flow_control_schedule_max_download_rate'=> -1,
@@ -388,6 +391,7 @@ foreach($opts as $opt=>$optval):
 			echo " Speed:  ".$p2pSpeed['down']." KBps / ".$p2pSpeed['up']." KBps\n";
 			echo " Limits: ".$p2pConf['flow_control_download_rate']." KBps / ".$p2pConf['flow_control_upload_rate']." KBps\n";
 			echo " AutoDownload: ".($p2pConf['autodownload']?'On':'Off')."\n";			
+			echo " Torrent Port: ".$p2pConf['port_number']."\n";			
 			echo p2pPrintList();
 		break;
 		
@@ -448,7 +452,25 @@ foreach($opts as $opt=>$optval):
 			$p2pConf = p2pGetConfig();
 			echo " AutoDownload: ".($p2pConf['autodownload']?'On':'Off')."\n";
 		break;	
-		
+
+		case 'b':
+		case 'p2p-port':
+			$p2pConf = p2pGetConfig();
+			#p2pInitConfig($p2pConf);
+			if(!(bool)$p2pConf['p2p'])
+			{
+				echo "P2P: Off\n";
+				break;
+			}
+			//TODO FIXME NOT WORKs
+			#if($optval)
+			#	p2pSetConfig( array('port'=>false, 'port_number'=>intval($optval)) );
+			
+			if($quiet) break;
+			#$p2pConf = p2pGetConfig();
+			echo " Torrent Port: ".$p2pConf['port_number']."\n";
+		break;
+
 		case 's':
 		case 'p2p-start':
 			$p2pConf = p2pGetConfig();
@@ -944,7 +966,8 @@ function p2pInitConfig($c)//reset $params['p2pSetConfig'] with actual options
 	$params['p2pSetConfig'] = array(
 		'f_P2P'=> $c['p2p'],
 		'f_auto_download'=> $c['autodownload'],
-		'f_port_custom'=> $c['p2p']?'true':'false',
+		'f_port_custom'=> $c['port'],
+		'f_port'=> $c['port_number'],	
 		'f_seed_type'=> $c['seeding'],
 		'f_encryption'=> $c['encryption'],
 		'f_flow_control_schedule_max_download_rate'=> $c['flow_control_download_rate'],
@@ -954,6 +977,8 @@ function p2pInitConfig($c)//reset $params['p2pSetConfig'] with actual options
 		'cmd'=>'p2p_set_config',
 		'tmp_p2p_state'=>''
 	);
+	echo "#######\n";
+	print_r(array($c,$params['p2pSetConfig']));
 /*  [result] => 1
     [p2p] => 1
     [port] => true
