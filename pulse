@@ -977,8 +977,6 @@ function p2pInitConfig($c)//reset $params['p2pSetConfig'] with actual options
 		'cmd'=>'p2p_set_config',
 		'tmp_p2p_state'=>''
 	);
-	echo "#######\n";
-	print_r(array($c,$params['p2pSetConfig']));
 /*  [result] => 1
     [p2p] => 1
     [port] => true
