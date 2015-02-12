@@ -15,11 +15,21 @@ stefano.cudini@gmail.com
 
 requirements: php5-cli,	recommends: php5-curl
 ************************************************/
-define('HOST', 'pulse');	//hostname or ip of your NAS
-define('USER', 'admin');
-define('PASS', 'admin');
+define('DEBUG', false);
 
-define('DEBUG', true);
+
+$userconfFile = @getenv("HOME").'/.dns320cmdrc';
+if(file_exists($userconfFile))
+{
+	$userconf = parse_ini_file($userconfFile,true);
+	define('HOST', $userconf['login']['host']);
+	define('USER', $userconf['login']['user']);
+	define('PASS', $userconf['login']['pass']);
+}else {
+	define('HOST', 'pulse');	//hostname or ip of your NAS
+	define('USER', 'admin');
+	define('PASS', 'admin');
+}
 
 $options = array(
 		'p::'=> 'p2p::',
