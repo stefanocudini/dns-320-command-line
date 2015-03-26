@@ -11,12 +11,9 @@
     "url": "git://github.com/stefanocudini/dns-320-command-line.git"
   },
   "keywords": [
-    "dns-320",
-    "pulse",
-    "dlink",
-    "nas",
     "php",
-    "commandline"
+    "bash",
+	"api"
   ],
   "author": "Stefano Cudini",
   "license": "MIT",
