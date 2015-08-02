@@ -523,11 +523,12 @@ foreach($opts as $opt=>$optval):
 				echo "P2P: Off\n";
 				break;
 			}
-			$optvals = @explode(',', strstr(',',$optval) ? $optval : $optval.',' );
-			$pp = p2pGetList();
-			foreach($pp as $p)
-				if(in_array($p['id'],$optvals))//remove only specific torrent id, never all in one time
-					p2pDelFile($p['id']);
+			if(confirm("Are you sure you want delete Torrents?")) {
+				$optvals = @explode(',', strstr(',',$optval) ? $optval : $optval.',' );
+				$pp = p2pGetList();
+				foreach($optvals as $id)
+					p2pDelFile($id);
+			}
 			if($quiet) break;
 			echo p2pPrintList();
 		break;	
@@ -1045,7 +1046,7 @@ function p2pDelFile($idtorrent)
 {
 	global $urls;
 	global $params;
-	$params['p2pDelFile']['f_torrent_index']= $idtorrent;	
+	$params['p2pDelFile']['f_torrent_index']= $idtorrent;
 	http_post_request($urls['p2p'],$params['p2pDelFile']);
 }
 
