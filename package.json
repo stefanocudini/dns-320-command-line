@@ -1,0 +1,24 @@
+{
+  "name": "dns-320-command-line",
+  "version": "0.0.0",
+  "description": "command-line interface for d-link sharecenter dns-320",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/stefanocudini/dns-320-command-line.git"
+  },
+  "keywords": [
+    "php",
+    "bash",
+	"api"
+  ],
+  "author": "Stefano Cudini",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/stefanocudini/dns-320-command-line/issues"
+  },
+  "homepage": "https://github.com/stefanocudini/dns-320-command-line"
+}
