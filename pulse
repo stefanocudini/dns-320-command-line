@@ -1223,7 +1223,7 @@ function downGetList()
 function downPrintList()
 {
 	$dd = downGetList();
-	$out .= "DOWNLOADS: ".count($dd)."\n";
+	$out = "DOWNLOADS: ".count($dd)."\n";
 	foreach($dd as $d)
 		$out .= ' '.ucwords($d['status'])."\t".$d['progress']."\t".$d['speed']."\t\t".basename($d['url'])."\n";
 	return $out;
