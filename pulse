@@ -1,5 +1,5 @@
 #!/usr/bin/php
-<?
+<?php
 /*
 COMMAND-LINE INTERFACE for D-LINK Sharecenter DNS-320 Pulse
 
@@ -16,7 +16,6 @@ stefano.cudini@gmail.com
 requirements: php5-cli,	recommends: php5-curl
 ************************************************/
 define('DEBUG', false);
-
 
 $userconfFile = @getenv("HOME").'/.dns320cmdrc';
 if(file_exists($userconfFile))
@@ -1598,9 +1597,13 @@ function http_post_requestCurl($url, $pdata=null, $getHeaders=false)
 	
 	$body = ''; $head = array();
 	$resRows = explode("\r\n",substr($resp,0, $info['header_size']));
-	foreach($resRows as $row)
-		$head[ current(explode(': ',$row)) ] = next(explode(': ',$row));
-	//split http head in headers key=>value
+	foreach($resRows as $row){
+		$a = explode(': ',$row);
+		$e = current($a);
+		if($e)
+			$head[$e] = $e;
+		//split http head in headers key=>value
+	}
 
 	if(isset($info['request_header']))
 		$reqRows = explode("\r\n", trim($info['request_header']));
