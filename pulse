@@ -14,13 +14,23 @@ Copyleft Stefano Cudini 2012
 stefano.cudini@gmail.com
 
 requirements: php5-cli,	recommends: php5-curl
+
+config file: ~/.dns320cmdrc
+
+[login]
+host = pulse
+user = admin
+pass = admin
+
 ************************************************/
 define('DEBUG', false);
 
-$userconfFile = @getenv("HOME").'/.dns320cmdrc';
-if(file_exists($userconfFile))
+define('CONFIG_FILE', @getenv("HOME").'/.dns320cmdrc');
+define('SESSION_FILE', @getenv("HOME").'/.dns320cmd.session');
+
+if(file_exists(CONFIG_FILE))
 {
-	$userconf = parse_ini_file($userconfFile,true);
+	$userconf = parse_ini_file(CONFIG_FILE, true);
 	define('HOST', $userconf['login']['host']);
 	define('USER', $userconf['login']['user']);
 	define('PASS', $userconf['login']['pass']);
@@ -130,8 +140,6 @@ if(count($opts)==0)
 	errout(HELP);
 
 define('DIRDOWN', 'Volume_1/downloads');//target path inside nas for http download
-define('DIRBASE', dirname(__FILE__).'/');//path of this script
-define('CJAR', DIRBASE.'_cookies.txt');
 define('USECURL', in_array('curl',get_loaded_extensions()) );//check php5-curl is present
 define('UAGENT', "DNS-320 Command-line Interface (".(USECURL?'Curl':'Socket').')');
 define('URLCGI', 'http://'.HOST.'/cgi-bin/');
@@ -1584,8 +1592,8 @@ function http_post_requestCurl($url, $pdata=null, $getHeaders=false)
 	curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
 	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 	curl_setopt($ch, CURLOPT_COOKIE, $cookie);
-	curl_setopt($ch, CURLOPT_COOKIEJAR, CJAR);
-	curl_setopt($ch, CURLOPT_COOKIEFILE, CJAR);
+	curl_setopt($ch, CURLOPT_COOKIEJAR, SESSION_FILE);
+	curl_setopt($ch, CURLOPT_COOKIEFILE, SESSION_FILE);
 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 	curl_setopt($ch, CURLOPT_USERAGENT, UAGENT);
 #	curl_setopt($ch, CURLOPT_HTTPHEADER, array("Connection: close"));
