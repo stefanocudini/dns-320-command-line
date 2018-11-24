@@ -27,6 +27,7 @@ define('DEBUG', false);
 
 define('CONFIG_FILE', @getenv("HOME").'/.dns320cmdrc');
 define('SESSION_FILE', @getenv("HOME").'/.dns320cmd.session');
+define('COOKIE_FILE', @getenv("HOME").'/.dns320cmd.cookie');
 
 if(file_exists(CONFIG_FILE))
 {
@@ -1593,7 +1594,7 @@ function http_post_requestCurl($url, $pdata=null, $getHeaders=false)
 	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 	curl_setopt($ch, CURLOPT_COOKIE, $cookie);
 	curl_setopt($ch, CURLOPT_COOKIEJAR, SESSION_FILE);
-	curl_setopt($ch, CURLOPT_COOKIEFILE, SESSION_FILE);
+	curl_setopt($ch, CURLOPT_COOKIEFILE, COOKIE_FILE);
 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 	curl_setopt($ch, CURLOPT_USERAGENT, UAGENT);
 #	curl_setopt($ch, CURLOPT_HTTPHEADER, array("Connection: close"));
