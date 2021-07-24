@@ -8,11 +8,11 @@ Copyleft Stefano Cudini 2012
 
 stefano.cudini@gmail.com
 
-[labs.easyblog.it](http://labs.easyblog.it/dns-320-command-line/)
+[opengeo.tech](https://opengeo.tech/dns-320-command-line/)
 
 **Suggestions:**
 
-This script is designed to run on a remote host than your NAS, but enabling ssh access to the NAS, eg using [Fun Plug](http://dns323.kood.org/howto:ffp), you can copy the script into the NAS and run it from the command line via ssh or crond
+This script is designed to run on a remote host than your NAS, but enabling ssh access to the NAS, eg using [Fun Plug](https://dns323.kood.org/howto:ffp), you can copy the script into the NAS and run it from the command line via ssh or crond
 
 **Requirements:**
 * php5-cli

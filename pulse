@@ -5,7 +5,7 @@ COMMAND-LINE INTERFACE for D-LINK Sharecenter DNS-320 Pulse
 
 Only for DLINK Firmware 2.03
 
-http://labs.easyblog.it/dns-320-command-line/
+https://opengeo.tech/dns-320-command-line/
 
 https://github.com/stefanocudini/dns-320-command-line
 https://bitbucket.org/zakis_/dns-320-command-line
@@ -99,7 +99,7 @@ OPTIONS:
        -h,--help                   print this help
 
 See also:
-       http://labs.easyblog.it/dns-320-command-line/
+       https://opengeo.tech/dns-320-command-line/
 
 ");
 
@@ -135,8 +135,8 @@ define('DIRBASE', dirname(__FILE__).'/');//path of this script
 define('CJAR', DIRBASE.'_cookies.txt');
 define('USECURL', in_array('curl',get_loaded_extensions()) );//check php5-curl is present
 define('UAGENT', "DNS-320 Command-line Interface (".(USECURL?'Curl':'Socket').')');
-define('URLCGI', 'http://'.HOST.'/cgi-bin/');
-define('URLXML', 'http://'.HOST.'/xml/');
+define('URLCGI', 'https://'.HOST.'/cgi-bin/');
+define('URLXML', 'https://'.HOST.'/xml/');
 define('TIMEOUT', 10);	//connection timeout
 define('SDELAY', 2);	//delay after post setconfig request, in seconds
 preg_match_all("/rows.([0-9]+);.columns.([0-9]+);/", strtolower(exec('stty -a |grep columns')), $o);
@@ -245,7 +245,7 @@ $params['downAddUrl'] = array(
 	'f_downloadtype'=>0,
 	'f_login_method'=>1,
 	'f_type'=>0,
-	'f_URL'=>'http://host/path/file',
+	'f_URL'=>'https://host/path/file',
 	'f_dir'=>DIRDOWN,
 	'f_rename'=>'',
 	'f_lang'=>'UTF-8',
@@ -744,7 +744,7 @@ function errout($t)
 
 function checkhost($hostport)
 {
-	return (bool)@file_get_contents('http://'.$hostport.'/',0,NULL,0,1);
+	return (bool)@file_get_contents('https://'.$hostport.'/',0,NULL,0,1);
 }
 
 function human2bytes($t)
@@ -1167,7 +1167,7 @@ function downAddUrl($url)
 	global $urls;
 	global $params;
 	
-	if(!strstr($url,"http://")) return false;//add check url controll syntax 
+	if(!strstr($url,"https://")) return false;//add check url controll syntax 
 	
 	$params['downAddUrl']['f_URL']= $url;
 	$params['downAddUrl']['f_date']= date("m/d/Y");
@@ -1319,7 +1319,7 @@ function login()		//LOGIN
 	list($head,$body) = http_post_request($urls['login'], $params['loginSet'], true);
 	//login conditions:
 	//RESP OK: "Set-Cookie:username=admin; path=/"
-	//RESP ERROR: "Location:http://host/web/relogin.html"
+	//RESP ERROR: "Location:https://host/web/relogin.html"
 	return (isset($head['Set-Cookie']) and strstr($head['Set-Cookie'],'username='.USER) );
 }
 
