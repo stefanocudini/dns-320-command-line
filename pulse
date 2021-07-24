@@ -1,5 +1,5 @@
 #!/usr/bin/php
-<?
+<?php
 /*
 COMMAND-LINE INTERFACE for D-LINK Sharecenter DNS-320 Pulse
 
@@ -14,14 +14,24 @@ Copyleft Stefano Cudini 2012
 stefano.cudini@gmail.com
 
 requirements: php5-cli,	recommends: php5-curl
+
+config file: ~/.dns320cmdrc
+
+[login]
+host = pulse
+user = admin
+pass = admin
+
 ************************************************/
 define('DEBUG', false);
 
+define('CONFIG_FILE', @getenv("HOME").'/.dns320cmdrc');
+define('SESSION_FILE', @getenv("HOME").'/.dns320cmd.session');
+define('COOKIE_FILE', @getenv("HOME").'/.dns320cmd.cookie');
 
-$userconfFile = @getenv("HOME").'/.dns320cmdrc';
-if(file_exists($userconfFile))
+if(file_exists(CONFIG_FILE))
 {
-	$userconf = parse_ini_file($userconfFile,true);
+	$userconf = parse_ini_file(CONFIG_FILE, true);
 	define('HOST', $userconf['login']['host']);
 	define('USER', $userconf['login']['user']);
 	define('PASS', $userconf['login']['pass']);
@@ -131,8 +141,6 @@ if(count($opts)==0)
 	errout(HELP);
 
 define('DIRDOWN', 'Volume_1/downloads');//target path inside nas for http download
-define('DIRBASE', dirname(__FILE__).'/');//path of this script
-define('CJAR', DIRBASE.'_cookies.txt');
 define('USECURL', in_array('curl',get_loaded_extensions()) );//check php5-curl is present
 define('UAGENT', "DNS-320 Command-line Interface (".(USECURL?'Curl':'Socket').')');
 define('URLCGI', 'https://'.HOST.'/cgi-bin/');
@@ -523,11 +531,12 @@ foreach($opts as $opt=>$optval):
 				echo "P2P: Off\n";
 				break;
 			}
-			$optvals = @explode(',', strstr(',',$optval) ? $optval : $optval.',' );
-			$pp = p2pGetList();
-			foreach($pp as $p)
-				if(in_array($p['id'],$optvals))//remove only specific torrent id, never all in one time
-					p2pDelFile($p['id']);
+			if(confirm("Are you sure you want delete Torrents?")) {
+				$optvals = @explode(',', strstr(',',$optval) ? $optval : $optval.',' );
+				$pp = p2pGetList();
+				foreach($optvals as $id)
+					p2pDelFile($id);
+			}
 			if($quiet) break;
 			echo p2pPrintList();
 		break;	
@@ -1045,7 +1054,7 @@ function p2pDelFile($idtorrent)
 {
 	global $urls;
 	global $params;
-	$params['p2pDelFile']['f_torrent_index']= $idtorrent;	
+	$params['p2pDelFile']['f_torrent_index']= $idtorrent;
 	http_post_request($urls['p2p'],$params['p2pDelFile']);
 }
 
@@ -1222,7 +1231,7 @@ function downGetList()
 function downPrintList()
 {
 	$dd = downGetList();
-	$out .= "DOWNLOADS: ".count($dd)."\n";
+	$out = "DOWNLOADS: ".count($dd)."\n";
 	foreach($dd as $d)
 		$out .= ' '.ucwords($d['status'])."\t".$d['progress']."\t".$d['speed']."\t\t".basename($d['url'])."\n";
 	return $out;
@@ -1584,8 +1593,8 @@ function http_post_requestCurl($url, $pdata=null, $getHeaders=false)
 	curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
 	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 	curl_setopt($ch, CURLOPT_COOKIE, $cookie);
-	curl_setopt($ch, CURLOPT_COOKIEJAR, CJAR);
-	curl_setopt($ch, CURLOPT_COOKIEFILE, CJAR);
+	curl_setopt($ch, CURLOPT_COOKIEJAR, SESSION_FILE);
+	curl_setopt($ch, CURLOPT_COOKIEFILE, COOKIE_FILE);
 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 	curl_setopt($ch, CURLOPT_USERAGENT, UAGENT);
 #	curl_setopt($ch, CURLOPT_HTTPHEADER, array("Connection: close"));
@@ -1597,9 +1606,13 @@ function http_post_requestCurl($url, $pdata=null, $getHeaders=false)
 	
 	$body = ''; $head = array();
 	$resRows = explode("\r\n",substr($resp,0, $info['header_size']));
-	foreach($resRows as $row)
-		$head[ current(explode(': ',$row)) ] = next(explode(': ',$row));
-	//split http head in headers key=>value
+	foreach($resRows as $row){
+		$a = explode(': ',$row);
+		$e = current($a);
+		if($e)
+			$head[$e] = $e;
+		//split http head in headers key=>value
+	}
 
 	if(isset($info['request_header']))
 		$reqRows = explode("\r\n", trim($info['request_header']));

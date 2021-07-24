@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#auto de/active p2p, tramite using pulse script
+#auto de/active p2p, using pulse script
 #
 #exit 0
 
